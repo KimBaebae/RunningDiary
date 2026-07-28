@@ -291,7 +291,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "REPO_ROOT=\"${SRCROOT}\"\nBUILD_TOOLS_DIR=\"${REPO_ROOT}/Dependencies/BuildTools\"\nSWIFTLINT_BIN=\"${BUILD_TOOLS_DIR}/.build/release/swiftlint\"\n\nif [ ! -f \"${SWIFTLINT_BIN}\" ]; then\n    echo \"warning: SwiftLint not built yet. Run ./Scripts/swiftlint.sh once to build.\"\n    exit 0\nfi\n\n\"${SWIFTLINT_BIN}\" lint --config \"${REPO_ROOT}/.swiftlint.yml\"\n";
+			shellScript = "SWIFTLINT_BIN=\"\"\nfor candidate in /opt/homebrew/bin/swiftlint \"$(command -v swiftlint || true)\" /usr/local/bin/swiftlint; do\n    if [ -n \"${candidate}\" ] && [ -x \"${candidate}\" ]; then\n        SWIFTLINT_BIN=\"${candidate}\"\n        break\n    fi\ndone\n\nif [ -z \"${SWIFTLINT_BIN}\" ]; then\n    echo \"warning: SwiftLint not installed. Run 'brew install swiftlint'.\"\n    exit 0\nfi\n\n\"${SWIFTLINT_BIN}\" lint --config \"${SRCROOT}/.swiftlint.yml\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
