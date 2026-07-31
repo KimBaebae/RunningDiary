@@ -152,4 +152,70 @@ struct WorkoutSplitCalculatorTests {
         let split = try #require(result.first)
         #expect(split.elevationGainM == expectedElevationGain)
     }
+
+    // MARK: - 구간 평균 파워
+
+    @Test("구간에 속한 파워 샘플의 평균이 소수 정밀도로 산출된다")
+    func makeSplits_averagesPower_preservingFraction() throws {
+        // Given
+        let route: [(offset: TimeInterval, cumulativeMeters: Double, altitude: Double?)] = [
+            (offset: 0, cumulativeMeters: 0, altitude: nil),
+            (offset: 300, cumulativeMeters: 1_000, altitude: nil),
+        ]
+        let power: [(offset: TimeInterval, value: Double)] = [
+            (offset: 0, value: 300.0),
+            (offset: 150, value: 310.5),
+            (offset: 300, value: 320.0),
+        ]
+        let expectedAveragePower = 310.1666666666667
+        let tolerance = 0.0001
+
+        // When
+        let result = WorkoutSplitCalculator.makeSplits(route: route, heartRate: [], cadence: [], power: power)
+
+        // Then
+        let split = try #require(result.first)
+        let averagePower = try #require(split.averagePower)
+        #expect(abs(averagePower - expectedAveragePower) < tolerance)
+    }
+
+    @Test("파워 샘플을 넘기지 않으면 averagePower는 nil이다")
+    func makeSplits_averagePowerIsNil_whenPowerSamplesOmitted() throws {
+        // Given
+        let route: [(offset: TimeInterval, cumulativeMeters: Double, altitude: Double?)] = [
+            (offset: 0, cumulativeMeters: 0, altitude: nil),
+            (offset: 300, cumulativeMeters: 1_000, altitude: nil),
+        ]
+
+        // When
+        let result = WorkoutSplitCalculator.makeSplits(route: route, heartRate: [], cadence: [])
+
+        // Then
+        let split = try #require(result.first)
+        #expect(split.averagePower == nil)
+    }
+
+    @Test("구간 범위 밖의 파워 샘플은 평균에 포함되지 않는다")
+    func makeSplits_excludesPowerSamplesOutsideSplitRange() throws {
+        // Given
+        let route: [(offset: TimeInterval, cumulativeMeters: Double, altitude: Double?)] = [
+            (offset: 0, cumulativeMeters: 0, altitude: nil),
+            (offset: 300, cumulativeMeters: 1_000, altitude: nil),
+            (offset: 600, cumulativeMeters: 2_000, altitude: nil),
+        ]
+        let power: [(offset: TimeInterval, value: Double)] = [
+            (offset: 0, value: 300.0),
+            (offset: 450, value: 400.0),
+        ]
+        let expectedFirstSplitPower = 300.0
+        let expectedSecondSplitPower = 400.0
+
+        // When
+        let result = WorkoutSplitCalculator.makeSplits(route: route, heartRate: [], cadence: [], power: power)
+
+        // Then
+        #expect(result.count == 2)
+        #expect(result.first?.averagePower == expectedFirstSplitPower)
+        #expect(result.last?.averagePower == expectedSecondSplitPower)
+    }
 }

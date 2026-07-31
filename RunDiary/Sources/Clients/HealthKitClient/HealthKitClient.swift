@@ -35,21 +35,27 @@ extension HealthKitClient: DependencyKey {
         (0..<7).map { index in
             // 일부 날짜는 데이터가 없도록 nil 반환
             let duration = Double.random(in: 1800...5400)
+            let distance = Double.random(in: 3.0...10.0)
+            let activeEnergyBurned = Double.random(in: 300...600)
             return index % 3 == 0 ? nil : HealthKitWorkout(
-                distance: Double.random(in: 3.0...10.0),
+                distance: distance,
                 duration: duration,
-                averagePace: "5'30\"",
+                averagePaceSecondsPerKm: PaceMapper.secondsPerKm(
+                    fromDurationSec: duration,
+                    distanceKm: distance
+                ),
                 averageHeartRate: Int.random(in: 140...170),
                 averageCadence: Int.random(in: 170...185),
-                activeEnergyBurned: Double.random(in: 300...600),
-                runningVerticalOscillation: Double.random(in: 7.0...9.0),
-                runningGroundContactTime: Double.random(in: 230...260),
-                walkingStepLength: Double.random(in: 0.9...1.2),
+                activeEnergyBurned: activeEnergyBurned,
+                totalEnergyBurned: activeEnergyBurned + Double.random(in: 60...120),
+                elevationAscended: Double.random(in: 10...80),
+                averageVerticalOscillation: Double.random(in: 7.0...9.0),
+                averageGroundContactTime: Double.random(in: 230...260),
+                averageStepLength: Double.random(in: 0.9...1.2),
                 restingHeartRate: Double.random(in: 50...80),
-                runningPower: Double.random(in: 200...400),
-                runningStrideLength: Double.random(in: 0.9...1.2),
+                averagePower: Double.random(in: 200...400),
+                averageStrideLength: Double.random(in: 0.9...1.2),
                 heartRateRecoveryOneMinute: Double.random(in: 15...30),
-                routeData: nil,
                 startDate: Calendar.current.date(byAdding: .second, value: Int(-duration), to: .now)!,
                 endDate: .now
             )

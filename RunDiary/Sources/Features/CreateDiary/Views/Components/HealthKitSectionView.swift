@@ -43,7 +43,7 @@ struct HealthKitSectionView: View {
                     L10n.recordFieldPace.text
                         .foregroundColor(.gray500)
                     Spacer()
-                    Text(workout.averagePace)
+                    Text(workout.formattedAveragePace)
                         .foregroundStyle(.blue700)
                 }
 
@@ -79,36 +79,36 @@ struct HealthKitSectionView: View {
                     }
                 }
 
-                if !workout.formattedRunningPower.isEmpty {
+                if !workout.formattedAveragePower.isEmpty {
                     HStack {
                         L10n.recordFieldRunningPower.text
                             .foregroundColor(.gray500)
                         Spacer()
-                        Text(workout.formattedRunningPower)
+                        Text(workout.formattedAveragePower)
                             .foregroundStyle(.blue700)
                         L10n.unitWatts.text
                             .foregroundColor(.gray500)
                     }
                 }
 
-                if !workout.formattedVerticalOscillation.isEmpty {
+                if !workout.formattedAverageVerticalOscillation.isEmpty {
                     HStack {
                         L10n.recordFieldVerticalOscillation.text
                             .foregroundColor(.gray500)
                         Spacer()
-                        Text(workout.formattedVerticalOscillation)
+                        Text(workout.formattedAverageVerticalOscillation)
                             .foregroundStyle(.blue700)
                         L10n.unitCm.text
                             .foregroundColor(.gray500)
                     }
                 }
 
-                if !workout.formattedGroundContactTime.isEmpty {
+                if !workout.formattedAverageGroundContactTime.isEmpty {
                     HStack {
                         L10n.recordFieldGroundContactTime.text
                             .foregroundColor(.gray500)
                         Spacer()
-                        Text(workout.formattedGroundContactTime)
+                        Text(workout.formattedAverageGroundContactTime)
                             .foregroundStyle(.blue700)
                         L10n.unitMs.text
                             .foregroundColor(.gray500)

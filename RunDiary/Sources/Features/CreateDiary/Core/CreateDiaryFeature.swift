@@ -79,7 +79,7 @@ struct CreateDiaryFeature {
             self.healthKitWorkout = healthKitWorkout
             self.selectedPainAreas = Set(existingRecord?.painAreas ?? [])
             self.selectedRunningStyle = existingRecord?.runningStyle
-            self.selectedShoe = nil
+            self.selectedShoe = existingRecord?.shoe
             self.selectedDifficultyLevel = existingRecord?.difficultyLevel ?? .medium
             self.memo = existingRecord?.memo ?? ""
 
@@ -132,7 +132,7 @@ struct CreateDiaryFeature {
 
                 // 신규 기록은 목록에서 전체 데이터를 그대로 받으므로, 경로에서 위치를 추출해 날씨만 조회한다.
                 let workout = state.healthKitWorkout
-                let location = extractLocationFromRoute(workout.routeData)
+                let location = extractLocationFromRoute(workout.route)
 
                 guard let location else { return shoesEffect }
 
@@ -176,8 +176,10 @@ struct CreateDiaryFeature {
             case .shoesLoaded(let shoes):
                 state.shoes = shoes
                 state.isShoesLoading = false
-                if state.selectedShoe == nil, let id = state.existingRecord?.shoes {
-                    state.selectedShoe = shoes.first { $0.id == id }
+                // 저장된 신발은 마스터 목록 없이 복원돼 메타데이터가 비어 있을 수 있다.
+                // 목록이 도착하면 정식 항목으로 교체하고, 목록에 없으면 선택을 비운다.
+                state.selectedShoe = state.selectedShoe.flatMap { selected in
+                    shoes.first { $0.id == selected.id }
                 }
                 return .none
 
@@ -228,7 +230,7 @@ struct CreateDiaryFeature {
                 let painAreas = state.selectedPainAreas
                 let runningStyle = state.selectedRunningStyle
                 let memo = state.memo
-                let shoeId = state.selectedShoe?.id ?? ""
+                let shoe = state.selectedShoe
                 let difficultyLevel = state.selectedDifficultyLevel
                 let weather = mergeWeather(
                     base: state.weather,
@@ -247,7 +249,7 @@ struct CreateDiaryFeature {
                             painAreas: Array(painAreas),
                             runningStyle: runningStyle,
                             memo: memo.isEmpty ? nil : memo,
-                            shoes: shoeId,
+                            shoe: shoe,
                             weather: weather,
                             difficultyLevel: difficultyLevel
                         )
@@ -282,15 +284,10 @@ struct CreateDiaryFeature {
         }
     }
 
-    private func extractLocationFromRoute(_ routeData: Data?) -> CLLocationCoordinate2D? {
-        guard let routeData = routeData,
-              let coordinates = try? JSONDecoder().decode([Location].self, from: routeData),
-              !coordinates.isEmpty else {
-            return nil
-        }
+    /// 경로의 시작·종료 지점 중간 좌표를 날씨 조회 위치로 사용한다.
+    private func extractLocationFromRoute(_ route: [RoutePoint]) -> CLLocationCoordinate2D? {
+        guard let first = route.first, let last = route.last else { return nil }
 
-        let first = coordinates.first!
-        let last = coordinates.last!
         let midLatitude = (first.latitude + last.latitude) / 2.0
         let midLongitude = (first.longitude + last.longitude) / 2.0
 

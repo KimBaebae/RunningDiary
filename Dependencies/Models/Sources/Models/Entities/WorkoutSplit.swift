@@ -12,6 +12,7 @@ public struct WorkoutSplit: Equatable, Sendable, Codable {
     public let paceSecondsPerKm: Int
     public let averageHeartRate: Int?        // 구간 내 샘플 없으면 nil
     public let averageCadence: Int?
+    public let averagePower: Double?         // watts. 구간 내 샘플 없으면 nil
     public let elevationGainM: Double?
 
     public init(
@@ -21,6 +22,7 @@ public struct WorkoutSplit: Equatable, Sendable, Codable {
         paceSecondsPerKm: Int,
         averageHeartRate: Int?,
         averageCadence: Int?,
+        averagePower: Double? = nil,
         elevationGainM: Double?
     ) {
         self.index = index
@@ -29,6 +31,7 @@ public struct WorkoutSplit: Equatable, Sendable, Codable {
         self.paceSecondsPerKm = paceSecondsPerKm
         self.averageHeartRate = averageHeartRate
         self.averageCadence = averageCadence
+        self.averagePower = averagePower
         self.elevationGainM = elevationGainM
     }
 }

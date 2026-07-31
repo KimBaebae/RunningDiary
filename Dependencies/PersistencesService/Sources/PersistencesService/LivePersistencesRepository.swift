@@ -19,7 +19,10 @@ public final class LivePersistencesRepository: PersistencesRepository {
         self.modelContext = modelContext
     }
 
-    public func fetchRunningRecord(for date: Date) async throws -> Diary? {
+    public func fetchRunningRecord(
+        for date: Date,
+        shoeResolver: @escaping @Sendable (String) -> Shoe?
+    ) async throws -> Diary? {
         let yearMonthDay = YearMonthDay(date: date)
         let cacheKey = YearMonthDayCacheKey(yearMonthDay)
 
@@ -44,7 +47,7 @@ public final class LivePersistencesRepository: PersistencesRepository {
         )
 
         let models = try modelContext.fetch(descriptor)
-        let records = models.map { $0.toDomain() }
+        let records = models.map { $0.toDomain(shoeResolver: shoeResolver) }
 
         // 3. 캐시에 저장
         cache.setObject(DiaryArrayCacheValue(records), forKey: cacheKey)
@@ -52,7 +55,11 @@ public final class LivePersistencesRepository: PersistencesRepository {
         return records.first
     }
 
-    public func fetchRunningRecords(from startDate: Date, to endDate: Date) async throws -> [Diary] {
+    public func fetchRunningRecords(
+        from startDate: Date,
+        to endDate: Date,
+        shoeResolver: @escaping @Sendable (String) -> Shoe?
+    ) async throws -> [Diary] {
         // 1. 요청 범위의 날짜들 추출
         let requestedDates = generateDateRange(from: startDate, to: endDate)
 
@@ -75,7 +82,7 @@ public final class LivePersistencesRepository: PersistencesRepository {
             )
 
             let models = try modelContext.fetch(descriptor)
-            let fetchedRecords = models.map { $0.toDomain() }
+            let fetchedRecords = models.map { $0.toDomain(shoeResolver: shoeResolver) }
 
             // 4. 날짜별로 그룹핑하여 캐시에 저장
             let groupedRecords = Dictionary(grouping: fetchedRecords, by: \.workout.yearMonthDay)

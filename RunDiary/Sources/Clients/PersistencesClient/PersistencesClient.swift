@@ -109,10 +109,16 @@ extension PersistencesClient {
 
         return PersistencesClient(
             fetch: { date in
-                try await repository.fetchRunningRecord(for: date)
+                let shoeResolver = await ShoeCache.shared.makeShoeResolver()
+                return try await repository.fetchRunningRecord(for: date, shoeResolver: shoeResolver)
             },
             fetchRecords: { startDate, endDate in
-                try await repository.fetchRunningRecords(from: startDate, to: endDate)
+                let shoeResolver = await ShoeCache.shared.makeShoeResolver()
+                return try await repository.fetchRunningRecords(
+                    from: startDate,
+                    to: endDate,
+                    shoeResolver: shoeResolver
+                )
             },
             save: { record in
                 try await repository.saveRunningRecord(record)
@@ -191,15 +197,17 @@ extension PersistencesClient: DependencyKey {
         fetch: { date in
             // RunningRecordModel.previewRecords에서 날짜가 일치하는 레코드 찾기
             let calendar = Calendar.current
+            let shoeResolver = await ShoeCache.shared.makeShoeResolver()
             return RunningRecordPersistenceModel.previewRecords
                 .first { calendar.isDate($0.date, inSameDayAs: date) }?
-                .toDomain()
+                .toDomain(shoeResolver: shoeResolver)
         },
         fetchRecords: { startDate, endDate in
             // 날짜 범위에 맞는 레코드들 반환
-            RunningRecordPersistenceModel.previewRecords
+            let shoeResolver = await ShoeCache.shared.makeShoeResolver()
+            return RunningRecordPersistenceModel.previewRecords
                 .filter { $0.date >= startDate && $0.date <= endDate }
-                .map { $0.toDomain() }
+                .map { $0.toDomain(shoeResolver: shoeResolver) }
         },
         save: { _ in },
         update: { _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ in },

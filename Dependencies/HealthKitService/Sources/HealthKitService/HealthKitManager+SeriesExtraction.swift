@@ -14,10 +14,26 @@ private enum Constant {
     static let seriesIntervalSec = 5
 }
 
-/// 경로 조회 결과. `routeData`는 기존 `[Location]` JSON(좌표만), `samples`는 splits/series 계산용 원시 값(경과초·누적거리·고도).
+/// 경로 조회 결과. `route`는 도메인 경로(좌표·고도·경과초), `samples`는 splits/series 계산용 원시 값(경과초·누적거리·고도).
 struct RouteExtractionResult {
-    let routeData: Data?
+    let route: [RoutePoint]
     let samples: [(offset: TimeInterval, cumulativeMeters: Double, altitude: Double?)]
+
+    static let empty = RouteExtractionResult(route: [], samples: [])
+}
+
+/// `HKWorkoutRouteQuery`는 배치 콜백을 여러 번 호출하므로 누적 버퍼가 필요하다.
+/// 콜백이 직렬로 전달되므로 참조 타입 버퍼로 누적해 캡처 변수 변경 경고 없이 수집한다.
+private final class LocationBuffer: @unchecked Sendable {
+    private var locations: [CLLocation] = []
+
+    func append(_ batch: [CLLocation]) {
+        locations.append(contentsOf: batch)
+    }
+
+    var all: [CLLocation] {
+        locations
+    }
 }
 
 extension HealthKitManager {
@@ -26,26 +42,50 @@ extension HealthKitManager {
         heartRate: [(offset: TimeInterval, value: Double)],
         pace: [(offset: TimeInterval, value: Double)],
         cadence: [(offset: TimeInterval, value: Double)],
+        power: [(offset: TimeInterval, value: Double)],
+        verticalOscillation: [(offset: TimeInterval, value: Double)],
+        groundContactTime: [(offset: TimeInterval, value: Double)],
+        strideLength: [(offset: TimeInterval, value: Double)],
         route: [(offset: TimeInterval, cumulativeMeters: Double, altitude: Double?)]
     ) -> WorkoutSeries? {
-        guard !heartRate.isEmpty || !pace.isEmpty || !cadence.isEmpty || !route.isEmpty else { return nil }
+        let isEmpty = heartRate.isEmpty
+            && pace.isEmpty
+            && cadence.isEmpty
+            && power.isEmpty
+            && verticalOscillation.isEmpty
+            && groundContactTime.isEmpty
+            && strideLength.isEmpty
+            && route.isEmpty
+        guard !isEmpty else { return nil }
 
         let elevation = route.compactMap { sample -> ElevationPoint? in
             guard let altitude = sample.altitude else { return nil }
             return ElevationPoint(distanceM: sample.cumulativeMeters, altitude: altitude)
         }
 
+        let interval = Constant.seriesIntervalSec
+
         return WorkoutSeries(
-            sampleIntervalSec: Constant.seriesIntervalSec,
-            heartRate: WorkoutSeriesBuilder.downsample(heartRate, intervalSec: Constant.seriesIntervalSec),
-            paceSecondsPerKm: WorkoutSeriesBuilder.downsample(pace, intervalSec: Constant.seriesIntervalSec),
-            cadence: WorkoutSeriesBuilder.downsample(cadence, intervalSec: Constant.seriesIntervalSec),
+            sampleIntervalSec: interval,
+            heartRate: WorkoutSeriesBuilder.downsample(heartRate, intervalSec: interval),
+            paceSecondsPerKm: WorkoutSeriesBuilder.downsample(pace, intervalSec: interval),
+            cadence: WorkoutSeriesBuilder.downsample(cadence, intervalSec: interval),
+            power: WorkoutSeriesBuilder.downsample(power, intervalSec: interval),
+            // 수직 진폭(cm)·보폭 길이(m)는 값이 작아 정수 반올림 시 정보가 소멸하므로 소수 정밀도를 유지한다.
+            verticalOscillation: WorkoutSeriesBuilder.downsampleDecimal(verticalOscillation, intervalSec: interval),
+            groundContactTime: WorkoutSeriesBuilder.downsample(groundContactTime, intervalSec: interval),
+            strideLength: WorkoutSeriesBuilder.downsampleDecimal(strideLength, intervalSec: interval),
             elevation: elevation
         )
     }
 }
 
 extension HealthKitManager {
+    /// 워크아웃 경로를 조회한다. 경로가 없거나 조회에 실패하면 빈 결과를 반환한다.
+    func fetchRouteExtractionResult(for workout: HKWorkout) async -> RouteExtractionResult {
+        (try? await fetchRouteData(for: workout)) ?? .empty
+    }
+
     func fetchRouteData(for workout: HKWorkout) async throws -> RouteExtractionResult {
         let routeType = HKSeriesType.workoutRoute()
         let predicate = HKQuery.predicateForObjects(from: workout)
@@ -69,12 +109,22 @@ extension HealthKitManager {
         }
 
         guard let route = routes.first else {
-            return RouteExtractionResult(routeData: nil, samples: [])
+            return .empty
         }
 
-        var locations: [CLLocation] = []
+        let locations = try await fetchLocations(of: route)
 
-        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+        return RouteExtractionResult(
+            route: makeRoutePoints(from: locations, workoutStart: workout.startDate),
+            samples: makeRouteSamples(from: locations, workoutStart: workout.startDate)
+        )
+    }
+
+    /// 경로 샘플의 좌표를 배치 단위로 모두 수집한다.
+    private func fetchLocations(of route: HKWorkoutRoute) async throws -> [CLLocation] {
+        let buffer = LocationBuffer()
+
+        return try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[CLLocation], Error>) in
             let query = HKWorkoutRouteQuery(route: route) { _, batch, done, error in
                 if let error = error {
                     continuation.resume(throwing: error)
@@ -82,28 +132,27 @@ extension HealthKitManager {
                 }
 
                 if let batch = batch {
-                    locations.append(contentsOf: batch)
+                    buffer.append(batch)
                 }
 
                 if done {
-                    continuation.resume()
+                    continuation.resume(returning: buffer.all)
                 }
             }
             healthStore.execute(query)
         }
+    }
 
-        let coordinates = locations.map {
-            Location(
-                latitude: $0.coordinate.latitude,
-                longitude: $0.coordinate.longitude
+    /// `CLLocation`을 도메인 경로 지점으로 변환한다. 고도와 워크아웃 시작 후 경과초를 함께 보존한다.
+    func makeRoutePoints(from locations: [CLLocation], workoutStart: Date) -> [RoutePoint] {
+        locations.map { location in
+            RoutePoint(
+                latitude: location.coordinate.latitude,
+                longitude: location.coordinate.longitude,
+                altitude: location.altitude,
+                elapsedSec: location.timestamp.timeIntervalSince(workoutStart)
             )
         }
-
-        // [Location]을 JSON Data로 인코딩
-        let routeData = try? JSONEncoder().encode(coordinates)
-        let samples = makeRouteSamples(from: locations, workoutStart: workout.startDate)
-
-        return RouteExtractionResult(routeData: routeData, samples: samples)
     }
 
     /// `CLLocation`의 timestamp·altitude·좌표를 splits/series 계산용 원시 샘플(경과초·누적거리·고도)로 변환한다.
@@ -129,88 +178,5 @@ extension HealthKitManager {
         }
 
         return samples
-    }
-
-    /// HR 등 `HKQuantitySample` 시계열을 (경과초, 원시 샘플) 배열로 조회하는 공통 헬퍼.
-    func fetchQuantitySamples(
-        for workout: HKWorkout,
-        identifier: HKQuantityTypeIdentifier
-    ) async -> [HKQuantitySample] {
-        guard let type = HKQuantityType.quantityType(forIdentifier: identifier) else { return [] }
-
-        let predicate = HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate, options: .strictStartDate)
-
-        return await withCheckedContinuation { (continuation: CheckedContinuation<[HKQuantitySample], Never>) in
-            let query = HKSampleQuery(
-                sampleType: type,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
-            ) { _, results, error in
-                if error != nil {
-                    continuation.resume(returning: [])
-                    return
-                }
-                continuation.resume(returning: results as? [HKQuantitySample] ?? [])
-            }
-            healthStore.execute(query)
-        }
-    }
-
-    /// `identifier` 시계열을 `unit`으로 변환해 (경과초, 값) 배열로 반환한다.
-    func fetchQuantitySeries(
-        for workout: HKWorkout,
-        identifier: HKQuantityTypeIdentifier,
-        unit: HKUnit
-    ) async -> [(offset: TimeInterval, value: Double)] {
-        let samples = await fetchQuantitySamples(for: workout, identifier: identifier)
-        return samples.map { sample in
-            (
-                offset: sample.startDate.timeIntervalSince(workout.startDate),
-                value: sample.quantity.doubleValue(for: unit)
-            )
-        }
-    }
-
-    /// (경과초, 값) 튜플 시계열을 Models의 `MetricSample`로 변환한다. 순서와 값을 그대로 보존한다.
-    func makeMetricSamples(_ series: [(offset: TimeInterval, value: Double)]) -> [MetricSample] {
-        series.map { MetricSample(offsetSec: $0.offset, value: $0.value) }
-    }
-
-    /// 워크아웃 구간의 `identifier` 샘플을 `unit`으로 변환해 `MetricSample` 배열로 조회한다. (쿼리 1회)
-    func fetchMetricSamples(
-        for workout: HKWorkout,
-        identifier: HKQuantityTypeIdentifier,
-        unit: HKUnit
-    ) async -> [MetricSample] {
-        makeMetricSamples(await fetchQuantitySeries(for: workout, identifier: identifier, unit: unit))
-    }
-
-    /// runningSpeed(m/s) 시계열을 `paceSecondsPerKm = 1000 / speed`로 변환한다. speed가 0 이하이면 제외한다.
-    func fetchPaceSeries(for workout: HKWorkout) async -> [(offset: TimeInterval, value: Double)] {
-        let speedSeries = await fetchQuantitySeries(
-            for: workout,
-            identifier: .runningSpeed,
-            unit: .meter().unitDivided(by: .second())
-        )
-
-        return speedSeries.compactMap { sample in
-            guard sample.value > 0 else { return nil }
-            return (offset: sample.offset, value: 1000 / sample.value)
-        }
-    }
-
-    /// stepCount 샘플을 각 샘플 구간(spm)으로 환산해 케이던스 시계열을 만든다.
-    func fetchCadenceSeries(for workout: HKWorkout) async -> [(offset: TimeInterval, value: Double)] {
-        let stepSamples = await fetchQuantitySamples(for: workout, identifier: .stepCount)
-
-        return stepSamples.compactMap { sample -> (offset: TimeInterval, value: Double)? in
-            let durationMinutes = sample.endDate.timeIntervalSince(sample.startDate) / 60
-            guard durationMinutes > 0 else { return nil }
-
-            let steps = sample.quantity.doubleValue(for: .count())
-            let offset = sample.startDate.timeIntervalSince(workout.startDate)
-            return (offset: offset, value: steps / durationMinutes)
-        }
     }
 }

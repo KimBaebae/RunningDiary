@@ -11,11 +11,12 @@ import Models
 /// route(경과초·누적거리·고도) 샘플과 HR/cadence 샘플로 구간(split) 요약을 산출하는 순수 계산 타입.
 /// HealthKit 타입에 의존하지 않고 원시 값만 입출력하여 단위 테스트가 가능하다.
 public enum WorkoutSplitCalculator {
-    /// route 샘플(경과초·누적거리m·고도m)과 HR/cadence 샘플로 `splitDistanceKm` 단위 구간 요약을 산출한다.
+    /// route 샘플(경과초·누적거리m·고도m)과 HR/cadence/power 샘플로 `splitDistanceKm` 단위 구간 요약을 산출한다.
     public static func makeSplits(
         route: [(offset: TimeInterval, cumulativeMeters: Double, altitude: Double?)],
         heartRate: [(offset: TimeInterval, value: Double)],
         cadence: [(offset: TimeInterval, value: Double)],
+        power: [(offset: TimeInterval, value: Double)] = [],
         splitDistanceKm: Double = 1.0
     ) -> [WorkoutSplit] {
         guard !route.isEmpty, splitDistanceKm > 0 else { return [] }
@@ -23,6 +24,7 @@ public enum WorkoutSplitCalculator {
         let sortedRoute = route.sorted { $0.offset < $1.offset }
         let sortedHeartRate = heartRate.sorted { $0.offset < $1.offset }
         let sortedCadence = cadence.sorted { $0.offset < $1.offset }
+        let sortedPower = power.sorted { $0.offset < $1.offset }
 
         guard let firstPoint = sortedRoute.first, let lastPoint = sortedRoute.last else { return [] }
 
@@ -47,6 +49,7 @@ public enum WorkoutSplitCalculator {
                 paceSecondsPerKm: paceSecondsPerKm,
                 averageHeartRate: averageValue(of: sortedHeartRate, from: previousOffset, to: boundaryOffset),
                 averageCadence: averageValue(of: sortedCadence, from: previousOffset, to: boundaryOffset),
+                averagePower: decimalAverageValue(of: sortedPower, from: previousOffset, to: boundaryOffset),
                 elevationGainM: elevationGain(in: sortedRoute, from: previousOffset, to: boundaryOffset)
             )
             splits.append(split)
@@ -107,14 +110,23 @@ public enum WorkoutSplitCalculator {
         from startOffset: TimeInterval,
         to endOffset: TimeInterval
     ) -> Int? {
+        decimalAverageValue(of: samples, from: startOffset, to: endOffset)
+            .map { Int($0.rounded()) }
+    }
+
+    /// `[startOffset, endOffset]` 구간에 속한 샘플의 평균을 소수 정밀도로 반환한다. 샘플 없으면 nil.
+    private static func decimalAverageValue(
+        of samples: [(offset: TimeInterval, value: Double)],
+        from startOffset: TimeInterval,
+        to endOffset: TimeInterval
+    ) -> Double? {
         let values = samples
             .filter { $0.offset >= startOffset && $0.offset <= endOffset }
             .map { $0.value }
 
         guard !values.isEmpty else { return nil }
 
-        let average = values.reduce(0, +) / Double(values.count)
-        return Int(average.rounded())
+        return values.reduce(0, +) / Double(values.count)
     }
 
     /// `[startOffset, endOffset]` 구간에 속한 고도 샘플의 양(+)의 변화량 합을 반환한다. 고도 샘플이 없으면 nil.
@@ -127,15 +139,6 @@ public enum WorkoutSplitCalculator {
             .filter { $0.offset >= startOffset && $0.offset <= endOffset }
             .compactMap { $0.altitude }
 
-        guard !altitudes.isEmpty else { return nil }
-
-        var gain = 0.0
-        for index in 1..<altitudes.count {
-            let delta = altitudes[index] - altitudes[index - 1]
-            if delta > 0 {
-                gain += delta
-            }
-        }
-        return gain
+        return ElevationCalculator.ascent(of: altitudes)
     }
 }

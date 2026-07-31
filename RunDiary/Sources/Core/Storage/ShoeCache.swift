@@ -36,6 +36,21 @@ public actor ShoeCache {
         return LegacyShoeMapper.decodeName(from: id)
     }
 
+    /// 현재 캐시 스냅샷을 캡처한 동기 resolver를 만든다.
+    /// 영속 계층이 신발 id를 `Shoe`로 복원할 때 사용한다.
+    /// 캐시에 없는 id는 레거시 슬러그로 간주해 표시 이름만 복원한다.
+    public func makeShoeResolver() -> @Sendable (String) -> Shoe? {
+        let snapshot = byID
+
+        return { id in
+            if let shoe = snapshot[id] { return shoe }
+
+            guard let name = LegacyShoeMapper.decodeName(from: id) else { return nil }
+
+            return .unresolved(id: id, displayName: name)
+        }
+    }
+
     public var isLoaded: Bool { loaded }
 
     public func reset() {

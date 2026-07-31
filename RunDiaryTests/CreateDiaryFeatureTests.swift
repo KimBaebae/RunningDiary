@@ -298,7 +298,7 @@ struct CreateDiaryFeatureOnAppearTests {
     @Test("기존 기록 수정 시 날씨 조회 생략, 신발만 로드")
     func onAppear_existingRecord_loadsOnlyShoes() async {
         let shoe = makeShoe(id: "s1")
-        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoes: "s1")
+        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoe: shoe)
         var weatherFetchCalled = false
 
         let store = TestStore(
@@ -365,14 +365,14 @@ struct CreateDiaryFeatureOnAppearTests {
         await ShoeCache.shared.reset()
         var weatherFetchCalled = false
 
-        let routeData = try! JSONEncoder().encode([
-            Location(latitude: 37.5, longitude: 127.0),
-            Location(latitude: 37.6, longitude: 127.1)
-        ])
+        let route = [
+            makeRoutePoint(latitude: 37.5, longitude: 127.0),
+            makeRoutePoint(latitude: 37.6, longitude: 127.1)
+        ]
 
         let store = TestStore(
             initialState: CreateDiaryFeature.State(
-                healthKitWorkout: makeWorkoutWithRoute(routeData: routeData)
+                healthKitWorkout: makeWorkoutWithRoute(route: route)
             )
         ) {
             CreateDiaryFeature()
@@ -402,10 +402,12 @@ struct CreateDiaryFeatureOnAppearTests {
 @Suite("CreateDiaryFeature.shoesLoaded")
 struct CreateDiaryFeatureShoesLoadedTests {
 
-    @Test("기존 기록 shoes ID 일치하는 신발 자동 선택")
+    @Test("저장된 신발이 목록 도착 시 정식 항목으로 교체됨")
     func shoesLoaded_matchesExistingRecordShoe() async {
         let shoe = makeShoe(id: "existing-shoe")
-        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoes: "existing-shoe")
+        // 목록 없이 복원된 기록은 메타데이터가 빈 최소 엔티티를 갖는다.
+        let storedShoe = Shoe.unresolved(id: "existing-shoe", displayName: "existing-shoe")
+        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoe: storedShoe)
         let store = TestStore(
             initialState: CreateDiaryFeature.State(
                 existingRecord: existing,
@@ -426,10 +428,11 @@ struct CreateDiaryFeatureShoesLoadedTests {
         }
     }
 
-    @Test("기존 기록 shoes ID 없으면 selectedShoe nil 유지")
-    func shoesLoaded_noMatchingShoe_keepsSelectedShoeNil() async {
+    @Test("저장된 신발이 목록에 없으면 selectedShoe를 비움")
+    func shoesLoaded_noMatchingShoe_clearsSelectedShoe() async {
         let shoe = makeShoe(id: "other-shoe")
-        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoes: "not-in-list")
+        let storedShoe = Shoe.unresolved(id: "not-in-list", displayName: "not-in-list")
+        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoe: storedShoe)
         let store = TestStore(
             initialState: CreateDiaryFeature.State(
                 existingRecord: existing,
@@ -446,6 +449,7 @@ struct CreateDiaryFeatureShoesLoadedTests {
         await store.send(.shoesLoaded([shoe])) {
             $0.isShoesLoading = false
             $0.shoes = [shoe]
+            $0.selectedShoe = nil
         }
     }
 
@@ -622,39 +626,38 @@ private func makeWorkout() -> HealthKitWorkout {
     HealthKitWorkout(
         distance: 5.0,
         duration: 1800,
-        averagePace: "6'00\"",
+        averagePaceSecondsPerKm: 360,
         averageHeartRate: 150,
         averageCadence: 170,
         activeEnergyBurned: 350,
-        runningVerticalOscillation: 8,
-        runningGroundContactTime: 240,
-        walkingStepLength: 1,
+        averageVerticalOscillation: 8,
+        averageGroundContactTime: 240,
+        averageStepLength: 1,
         restingHeartRate: 60,
-        runningPower: 300,
-        runningStrideLength: 1,
+        averagePower: 300,
+        averageStrideLength: 1,
         heartRateRecoveryOneMinute: 20,
-        routeData: nil,
         startDate: Date(timeIntervalSince1970: 0),
         endDate: Date(timeIntervalSince1970: 1800)
     )
 }
 
-private func makeWorkoutWithRoute(routeData: Data) -> HealthKitWorkout {
+private func makeWorkoutWithRoute(route: [RoutePoint]) -> HealthKitWorkout {
     HealthKitWorkout(
         distance: 5.0,
         duration: 1800,
-        averagePace: "6'00\"",
+        averagePaceSecondsPerKm: 360,
         averageHeartRate: 150,
         averageCadence: 170,
         activeEnergyBurned: 350,
-        runningVerticalOscillation: 8,
-        runningGroundContactTime: 240,
-        walkingStepLength: 1,
+        averageVerticalOscillation: 8,
+        averageGroundContactTime: 240,
+        averageStepLength: 1,
         restingHeartRate: 60,
-        runningPower: 300,
-        runningStrideLength: 1,
+        averagePower: 300,
+        averageStrideLength: 1,
         heartRateRecoveryOneMinute: 20,
-        routeData: routeData,
+        route: route,
         startDate: Date(timeIntervalSince1970: 0),
         endDate: Date(timeIntervalSince1970: 1800)
     )

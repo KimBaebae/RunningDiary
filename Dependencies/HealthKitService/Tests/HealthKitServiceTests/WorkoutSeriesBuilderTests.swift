@@ -112,4 +112,67 @@ struct WorkoutSeriesBuilderTests {
         // Then
         #expect(firstResult == secondResult)
     }
+
+    // MARK: - 소수 정밀도 보존 (downsampleDecimal)
+
+    @Test("수직 진폭 8.2cm가 정수 반올림 없이 보존된다")
+    func downsampleDecimal_preservesFraction_whenValueIsSmall() {
+        // Given
+        let samples: [(offset: TimeInterval, value: Double)] = [(offset: 0, value: 8.2)]
+        let expectedPoints = [MetricSeriesPoint(t: 0, v: 8.2)]
+
+        // When
+        let result = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
+
+        // Then
+        #expect(result == expectedPoints)
+    }
+
+    @Test("같은 버킷의 소수 값도 평균되어 소수로 남는다")
+    func downsampleDecimal_averagesValues_preservingFraction() {
+        // Given
+        let samples: [(offset: TimeInterval, value: Double)] = [
+            (offset: 0, value: 1.2),
+            (offset: 2, value: 1.4),
+        ]
+        let expectedValue = 1.3
+        let tolerance = 0.0001
+
+        // When
+        let result = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
+
+        // Then
+        #expect(result.count == 1)
+        #expect(result.first?.t == 0)
+        #expect(abs((result.first?.v ?? 0) - expectedValue) < tolerance)
+    }
+
+    @Test("정수 다운샘플과 달리 1 미만 값이 0으로 소멸하지 않는다")
+    func downsampleDecimal_doesNotCollapseSubUnitValues() {
+        // Given
+        let samples: [(offset: TimeInterval, value: Double)] = [(offset: 0, value: 0.4)]
+        let expectedIntegerValue = 0
+        let expectedDecimalValue = 0.4
+
+        // When
+        let integerResult = WorkoutSeriesBuilder.downsample(samples, intervalSec: 5)
+        let decimalResult = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
+
+        // Then
+        #expect(integerResult.first?.v == expectedIntegerValue)
+        #expect(decimalResult.first?.v == expectedDecimalValue)
+    }
+
+    @Test("빈 입력이면 빈 배열을 반환한다")
+    func downsampleDecimal_returnsEmpty_whenSamplesEmpty() {
+        // Given
+        let samples: [(offset: TimeInterval, value: Double)] = []
+        let expectedPoints: [MetricSeriesPoint] = []
+
+        // When
+        let result = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
+
+        // Then
+        #expect(result == expectedPoints)
+    }
 }

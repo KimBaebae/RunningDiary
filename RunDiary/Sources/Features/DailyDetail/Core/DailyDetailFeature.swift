@@ -190,7 +190,7 @@ struct DailyDetailFeature {
                     existingRecord: runningRecord,
                     healthKitWorkout: runningRecord.workout
                 )
-                return loadShoesForCreation(existingShoeId: runningRecord.shoes)
+                return loadShoesForCreation(existingShoeId: runningRecord.shoe?.id)
 
             case .createDiary(.presented(.recordSaved)):
                 AppLogger.dailyDetail.info("recordSaved - 새로고침 시작")

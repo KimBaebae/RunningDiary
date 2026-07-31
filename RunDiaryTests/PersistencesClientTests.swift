@@ -59,18 +59,17 @@ struct PersistencesClientTests {
             workout: HealthKitWorkout(
                 distance: 5.2,
                 duration: 1800,
-                averagePace: "5'46\"",
+                averagePaceSecondsPerKm: 346,
                 averageHeartRate: 150,
                 averageCadence: 170,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: startTime,
                 endDate: endTime
             ),
@@ -93,7 +92,7 @@ struct PersistencesClientTests {
         #expect(result?.workout.yearMonthDay == testDate)
         #expect(result?.workout.distance == 5.2)
         #expect(result?.workout.duration == 1800)
-        #expect(result?.workout.averagePace == "5'46\"")
+        #expect(result?.workout.formattedAveragePace == "5'46\"")
         #expect(result?.workout.averageHeartRate == 150)
         #expect(result?.workout.averageCadence == 170)
         #expect(result?.runningStyle == .midfoot)
@@ -141,9 +140,6 @@ struct PersistencesClientTests {
         let startDate = makeDate()
         let endDate = Calendar.current.date(byAdding: .day, value: 7, to: startDate)!
 
-        let day1 = makeYearMonthDay()
-        let day2 = makeYearMonthDay(day: 30)
-
         let time1Start = makeDate()
         let time1End = time1Start.addingTimeInterval(1500)
         let time2Start = makeDate(day: 30)
@@ -154,18 +150,17 @@ struct PersistencesClientTests {
                 workout: HealthKitWorkout(
                     distance: 5.0,
                     duration: 1500,
-                    averagePace: "5'00\"",
+                    averagePaceSecondsPerKm: 300,
                     averageHeartRate: 145,
                     averageCadence: 165,
                     activeEnergyBurned: 0,
-                    runningVerticalOscillation: 0,
-                    runningGroundContactTime: 0,
-                    walkingStepLength: 0,
+                    averageVerticalOscillation: 0,
+                    averageGroundContactTime: 0,
+                    averageStepLength: 0,
                     restingHeartRate: 0,
-                    runningPower: 0,
-                    runningStrideLength: 0,
+                    averagePower: 0,
+                    averageStrideLength: 0,
                     heartRateRecoveryOneMinute: 0,
-                    routeData: nil,
                     startDate: time1Start,
                     endDate: time1End
                 ),
@@ -177,18 +172,17 @@ struct PersistencesClientTests {
                 workout: HealthKitWorkout(
                     distance: 7.5,
                     duration: 2250,
-                    averagePace: "5'00\"",
+                    averagePaceSecondsPerKm: 300,
                     averageHeartRate: 150,
                     averageCadence: 170,
                     activeEnergyBurned: 0,
-                    runningVerticalOscillation: 0,
-                    runningGroundContactTime: 0,
-                    walkingStepLength: 0,
+                    averageVerticalOscillation: 0,
+                    averageGroundContactTime: 0,
+                    averageStepLength: 0,
                     restingHeartRate: 0,
-                    runningPower: 0,
-                    runningStrideLength: 0,
+                    averagePower: 0,
+                    averageStrideLength: 0,
                     heartRateRecoveryOneMinute: 0,
-                    routeData: nil,
                     startDate: time2Start,
                     endDate: time2End
                 ),
@@ -253,7 +247,6 @@ struct PersistencesClientTests {
     @Test("save: 새 기록 저장 성공")
     @MainActor
     func saveStoresNewRecord() async throws {
-        let yearMonthDay = makeYearMonthDay()
         let startTime = makeDate()
         let endTime = startTime.addingTimeInterval(3000)
 
@@ -261,18 +254,17 @@ struct PersistencesClientTests {
             workout: HealthKitWorkout(
                 distance: 10.0,
                 duration: 3000,
-                averagePace: "5'00\"",
+                averagePaceSecondsPerKm: 300,
                 averageHeartRate: 160,
                 averageCadence: 180,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: startTime,
                 endDate: endTime
             ),
@@ -311,24 +303,22 @@ struct PersistencesClientTests {
             }
         )
 
-        let yearMonthDay = makeYearMonthDay()
         let startTime = makeDate()
         let newRecord = Diary(
             workout: HealthKitWorkout(
                 distance: 5.0,
                 duration: 1500,
-                averagePace: "5'00\"",
+                averagePaceSecondsPerKm: 300,
                 averageHeartRate: 150,
                 averageCadence: 170,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: startTime,
                 endDate: startTime.addingTimeInterval(1500)
             ),
@@ -348,9 +338,6 @@ struct PersistencesClientTests {
     @MainActor
     func updateModifiesExistingRecord() async throws {
         let recordId = UUID()
-        let yearMonthDay = makeYearMonthDay()
-        let startTime = makeDate()
-        let endTime = startTime.addingTimeInterval(1800)
 
         var updatedRecordId: UUID?
         var updatedDistance: Double?
@@ -400,7 +387,6 @@ struct PersistencesClientTests {
     @Test("delete: 기록 삭제 성공")
     @MainActor
     func deleteRemovesRecord() async throws {
-        let yearMonthDay = makeYearMonthDay()
         let startTime = makeDate()
         let endTime = startTime.addingTimeInterval(1200)
 
@@ -408,18 +394,17 @@ struct PersistencesClientTests {
             workout: HealthKitWorkout(
                 distance: 3.0,
                 duration: 1200,
-                averagePace: "6'40\"",
+                averagePaceSecondsPerKm: 400,
                 averageHeartRate: 140,
                 averageCadence: 160,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: startTime,
                 endDate: endTime
             ),
@@ -456,25 +441,23 @@ struct PersistencesClientTests {
             }
         )
 
-        let yearMonthDay = makeYearMonthDay()
         let startTime = makeDate()
         let record = Diary(
             id: UUID(),
             workout: HealthKitWorkout(
                 distance: 5.0,
                 duration: 1500,
-                averagePace: "5'00\"",
+                averagePaceSecondsPerKm: 300,
                 averageHeartRate: 150,
                 averageCadence: 170,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: startTime,
                 endDate: startTime.addingTimeInterval(1500)
             ),
@@ -495,7 +478,6 @@ struct PersistencesClientTests {
     func integrationFetchUpdateFetch() async throws {
         let testDate = makeDate()
         let originalId = UUID()
-        let yearMonthDay = makeYearMonthDay()
         let startTime = makeDate()
         let endTime = startTime.addingTimeInterval(1500)
 
@@ -505,18 +487,17 @@ struct PersistencesClientTests {
                 workout: HealthKitWorkout(
                     distance: 5.0,
                     duration: 1500,
-                    averagePace: "5'00\"",
+                    averagePaceSecondsPerKm: 300,
                     averageHeartRate: 145,
                     averageCadence: 165,
                     activeEnergyBurned: 0,
-                    runningVerticalOscillation: 0,
-                    runningGroundContactTime: 0,
-                    walkingStepLength: 0,
+                    averageVerticalOscillation: 0,
+                    averageGroundContactTime: 0,
+                    averageStepLength: 0,
                     restingHeartRate: 0,
-                    runningPower: 0,
-                    runningStrideLength: 0,
+                    averagePower: 0,
+                    averageStrideLength: 0,
                     heartRateRecoveryOneMinute: 0,
-                    routeData: nil,
                     startDate: startTime,
                     endDate: endTime
                 ),
@@ -542,18 +523,18 @@ struct PersistencesClientTests {
                     let newWorkout = HealthKitWorkout(
                         distance: distance,
                         duration: oldWorkout.duration,
-                        averagePace: oldWorkout.averagePace,
+                        averagePaceSecondsPerKm: oldWorkout.averagePaceSecondsPerKm,
                         averageHeartRate: oldWorkout.averageHeartRate,
                         averageCadence: oldWorkout.averageCadence,
                         activeEnergyBurned: oldWorkout.activeEnergyBurned,
-                        runningVerticalOscillation: oldWorkout.runningVerticalOscillation,
-                        runningGroundContactTime: oldWorkout.runningGroundContactTime,
-                        walkingStepLength: oldWorkout.walkingStepLength,
+                        averageVerticalOscillation: oldWorkout.averageVerticalOscillation,
+                        averageGroundContactTime: oldWorkout.averageGroundContactTime,
+                        averageStepLength: oldWorkout.averageStepLength,
                         restingHeartRate: oldWorkout.restingHeartRate,
-                        runningPower: oldWorkout.runningPower,
-                        runningStrideLength: oldWorkout.runningStrideLength,
+                        averagePower: oldWorkout.averagePower,
+                        averageStrideLength: oldWorkout.averageStrideLength,
                         heartRateRecoveryOneMinute: oldWorkout.heartRateRecoveryOneMinute,
-                        routeData: oldWorkout.routeData,
+                        route: oldWorkout.route,
                         startDate: oldWorkout.startTime,
                         endDate: oldWorkout.endTime
                     )
@@ -563,7 +544,7 @@ struct PersistencesClientTests {
                         painAreas: existingRecord.painAreas,
                         runningStyle: existingRecord.runningStyle,
                         memo: existingRecord.memo,
-                        shoes: existingRecord.shoes,
+                        shoe: existingRecord.shoe,
                         weather: existingRecord.weather,
                         difficultyLevel: existingRecord.difficultyLevel
                     )
@@ -593,8 +574,6 @@ struct PersistencesClientTests {
 
         var storage: [UUID: Diary] = [:]
 
-        let day1 = makeYearMonthDay()
-        let day2 = makeYearMonthDay(day: 30)
         let time1Start = makeDate()
         let time1End = time1Start.addingTimeInterval(1500)
         let time2Start = makeDate(day: 30)
@@ -616,18 +595,17 @@ struct PersistencesClientTests {
             workout: HealthKitWorkout(
                 distance: 5.0,
                 duration: 1500,
-                averagePace: "5'00\"",
+                averagePaceSecondsPerKm: 300,
                 averageHeartRate: 145,
                 averageCadence: 165,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: time1Start,
                 endDate: time1End
             ),
@@ -640,18 +618,17 @@ struct PersistencesClientTests {
             workout: HealthKitWorkout(
                 distance: 7.0,
                 duration: 2100,
-                averagePace: "5'00\"",
+                averagePaceSecondsPerKm: 300,
                 averageHeartRate: 150,
                 averageCadence: 170,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: time2Start,
                 endDate: time2End
             ),
@@ -675,7 +652,6 @@ struct PersistencesClientTests {
         let testDate = makeDate()
         var storage: [UUID: Diary] = [:]
 
-        let yearMonthDay = makeYearMonthDay()
         let startTime = makeDate()
         let endTime = startTime.addingTimeInterval(1800)
 
@@ -696,18 +672,17 @@ struct PersistencesClientTests {
             workout: HealthKitWorkout(
                 distance: 6.0,
                 duration: 1800,
-                averagePace: "5'00\"",
+                averagePaceSecondsPerKm: 300,
                 averageHeartRate: 150,
                 averageCadence: 170,
                 activeEnergyBurned: 0,
-                runningVerticalOscillation: 0,
-                runningGroundContactTime: 0,
-                walkingStepLength: 0,
+                averageVerticalOscillation: 0,
+                averageGroundContactTime: 0,
+                averageStepLength: 0,
                 restingHeartRate: 0,
-                runningPower: 0,
-                runningStrideLength: 0,
+                averagePower: 0,
+                averageStrideLength: 0,
                 heartRateRecoveryOneMinute: 0,
-                routeData: nil,
                 startDate: startTime,
                 endDate: endTime
             ),

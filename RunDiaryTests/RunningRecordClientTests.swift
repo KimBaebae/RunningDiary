@@ -23,10 +23,9 @@ struct RunningRecordClientTests {
     func fetchData_filtersHealthKitWorkouts_whenStartDateMatchesSavedRecord() async throws {
         // Given
         let testDate = makeYearMonthDay(month: 1, day: 15)
-        let startTime = testDate.toDate()
 
-        let healthKitWorkout = makeHealthKitWorkout(yearMonthDay: testDate, startTime: startTime)
-        let savedRecord = makeRunningRecord(yearMonthDay: testDate, startTime: startTime)
+        let healthKitWorkout = makeHealthKitWorkout(yearMonthDay: testDate)
+        let savedRecord = makeDiary(yearMonthDay: testDate)
 
         let client = makeTestClient(
             healthKitWorkouts: [healthKitWorkout],
@@ -49,12 +48,9 @@ struct RunningRecordClientTests {
 
         let healthKitWorkout = makeHealthKitWorkout(
             yearMonthDay: testDate,
-            startTime: testDate.toDate().addingTimeInterval(1000)  // Different time
+            startOffset: 1000  // Different time
         )
-        let savedRecord = makeRunningRecord(
-            yearMonthDay: testDate,
-            startTime: testDate.toDate()
-        )
+        let savedRecord = makeDiary(yearMonthDay: testDate)
 
         let client = makeTestClient(
             healthKitWorkouts: [healthKitWorkout],
@@ -74,16 +70,14 @@ struct RunningRecordClientTests {
     func fetchData_filtersMultipleHealthKitWorkouts_withMultipleSavedRecords() async throws {
         // Given
         let testDate = makeYearMonthDay(month: 1, day: 15)
-        let startTime1 = testDate.toDate()
-        let startTime2 = testDate.toDate().addingTimeInterval(3600)
         let startTime3 = testDate.toDate().addingTimeInterval(7200)
 
-        let healthKit1 = makeHealthKitWorkout(yearMonthDay: testDate, startTime: startTime1)
-        let healthKit2 = makeHealthKitWorkout(yearMonthDay: testDate, startTime: startTime2)
-        let healthKit3 = makeHealthKitWorkout(yearMonthDay: testDate, startTime: startTime3)
+        let healthKit1 = makeHealthKitWorkout(yearMonthDay: testDate, startOffset: 0)
+        let healthKit2 = makeHealthKitWorkout(yearMonthDay: testDate, startOffset: 3600)
+        let healthKit3 = makeHealthKitWorkout(yearMonthDay: testDate, startOffset: 7200)
 
-        let saved1 = makeRunningRecord(yearMonthDay: testDate, startTime: startTime1)
-        let saved2 = makeRunningRecord(yearMonthDay: testDate, startTime: startTime2)
+        let saved1 = makeDiary(yearMonthDay: testDate, startOffset: 0)
+        let saved2 = makeDiary(yearMonthDay: testDate, startOffset: 3600)
 
         let client = makeTestClient(
             healthKitWorkouts: [healthKit1, healthKit2, healthKit3],
@@ -169,7 +163,7 @@ struct RunningRecordClientTests {
     func fetchData_handlesOnlySwiftDataData() async throws {
         // Given
         let testDate = makeYearMonthDay(month: 1, day: 15)
-        let savedRecord = makeRunningRecord(yearMonthDay: testDate)
+        let savedRecord = makeDiary(yearMonthDay: testDate)
 
         let client = makeTestClient(
             healthKitWorkouts: [],
@@ -192,7 +186,7 @@ struct RunningRecordClientTests {
     func saveRecord_callsPersistencesClient() async throws {
         // Given
         let testDate = makeYearMonthDay(month: 1, day: 15)
-        let recordToSave = makeRunningRecord(yearMonthDay: testDate)
+        let recordToSave = makeDiary(yearMonthDay: testDate)
 
         var savedRecord: Diary?
         let client = makeTestClient(
@@ -215,7 +209,7 @@ struct RunningRecordClientTests {
     func updateRecord_callsPersistencesClient() async throws {
         // Given
         let testDate = makeYearMonthDay(month: 1, day: 15)
-        let recordToUpdate = makeRunningRecord(yearMonthDay: testDate)
+        let recordToUpdate = makeDiary(yearMonthDay: testDate)
 
         var updatedRecord: Diary?
         let client = makeTestClient(
@@ -238,63 +232,6 @@ struct RunningRecordClientTests {
 // MARK: - Test Helpers
 
 private extension RunningRecordClientTests {
-    /// YearMonthDay 생성 헬퍼
-    func makeYearMonthDay(
-        year: Int? = nil,
-        month: Int = 1,
-        day: Int = 1
-    ) -> YearMonthDay {
-        let calendar = Calendar.current
-        let currentYear = year ?? calendar.component(.year, from: Date())
-        return YearMonthDay(year: currentYear, month: month, day: day)
-    }
-
-    /// HealthKitWorkout 생성 헬퍼
-    func makeHealthKitWorkout(
-        yearMonthDay: YearMonthDay,
-        distance: Double = 5.0,
-        startTime: Date? = nil
-    ) -> HealthKitWorkout {
-        let start = startTime ?? yearMonthDay.toDate()
-        return HealthKitWorkout(
-            distance: distance,
-            duration: 1800,
-            averagePace: "6'00\"",
-            averageHeartRate: 150,
-            averageCadence: 170,
-            activeEnergyBurned: 350.0,
-            runningVerticalOscillation: 8.0,
-            runningGroundContactTime: 240.0,
-            walkingStepLength: 1.0,
-            restingHeartRate: 60.0,
-            runningPower: 250.0,
-            runningStrideLength: 1.2,
-            heartRateRecoveryOneMinute: 25.0,
-            routeData: nil,
-            startDate: start,
-            endDate: start.addingTimeInterval(1800)
-        )
-    }
-
-    /// RunningRecord 생성 헬퍼
-    func makeRunningRecord(
-        yearMonthDay: YearMonthDay,
-        distance: Double = 5.0,
-        startTime: Date? = nil
-    ) -> Diary {
-        let start = startTime ?? yearMonthDay.toDate()
-        let workout = makeHealthKitWorkout(
-            yearMonthDay: yearMonthDay,
-            distance: distance,
-            startTime: start
-        )
-        return Diary(
-            workout: workout,
-            runningStyle: .midfoot,
-            memo: nil
-        )
-    }
-
     /// 테스트용 RunningRecordClient 생성
     @MainActor
     func makeTestClient(
