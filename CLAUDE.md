@@ -51,3 +51,6 @@
 - 모든 View 파일은 `#Preview` 블록을 반드시 포함한다.
 - `#Preview` 블록은 파일의 **가장 마지막**에 위치하고 `// MARK: - Preview` 로 구분한다.
 - 공용 더미 데이터는 `Core/Extensions/*+Preview.swift` 패턴으로 작성한다 (예: `HealthKitWorkout.preview`).
+
+## Handoff
+인수인계 프로토콜은 @AGENTS.md 의 "Handoff Protocol" 을 따른다. 세션 시작 시 `.handoff/CURRENT.md` 가 있으면 먼저 읽고 이어받는다.
