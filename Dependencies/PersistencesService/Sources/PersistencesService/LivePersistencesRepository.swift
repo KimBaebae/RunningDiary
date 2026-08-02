@@ -112,32 +112,7 @@ public final class LivePersistencesRepository: PersistencesRepository {
         }
     }
 
-    public func updateRunningRecord(
-        recordId: UUID,
-        date: YearMonthDay?,
-        distance: Double?,
-        duration: TimeInterval?,
-        averagePace: String?,
-        averageHeartRate: Int?,
-        averageCadence: Int?,
-        painAreas: [PainArea]?,
-        runningStyle: RunninStyle?,
-        memo: String?,
-        shoes: String?,
-        weather: WeatherData?,
-        difficultyLevel: DifficultyLevel?,
-        routeData: Data?,
-        activeEnergyBurned: Double?,
-        runningVerticalOscillation: Double?,
-        runningGroundContactTime: Double?,
-        walkingStepLength: Double?,
-        restingHeartRate: Double?,
-        runningPower: Double?,
-        runningStrideLength: Double?,
-        heartRateRecoveryOneMinute: Double?,
-        startTime: Date?,
-        endTime: Date?
-    ) async throws {
+    public func updateRunningRecord(recordId: UUID, patch: DiaryPatch) async throws {
         let predicate = #Predicate<RunningRecordPersistenceModel> { $0.id == recordId }
         let descriptor = FetchDescriptor<RunningRecordPersistenceModel>(predicate: predicate)
 
@@ -146,33 +121,9 @@ public final class LivePersistencesRepository: PersistencesRepository {
         }
 
         // nil이 아닌 값만 할당
-        if let date { existingModel.date = date.toDate() }
-        if let distance { existingModel.distance = distance }
-        if let duration { existingModel.duration = duration }
-        if let averagePace { existingModel.averagePace = averagePace }
-        if let averageHeartRate { existingModel.averageHeartRate = averageHeartRate }
-        if let averageCadence { existingModel.averageCadence = averageCadence }
-        if let painAreas { existingModel.painAreasRawData = PainAreasMapper.encode(painAreas) }
-        if let runningStyle { existingModel.runningStyleRaw = runningStyle.rawValue }
-        if let memo { existingModel.memo = memo }
-        if let shoes { existingModel.shoes = shoes }
-        if let weather {
-            existingModel.temperature = weather.temperature
-            existingModel.humidity = weather.humidity
-            existingModel.windSpeed = weather.windSpeed
-        }
-        if let difficultyLevel { existingModel.difficultyLevelRaw = difficultyLevel.rawValue }
-        if let routeData { existingModel.routeData = routeData }
-        if let activeEnergyBurned { existingModel.activeEnergyBurned = activeEnergyBurned }
-        if let runningVerticalOscillation { existingModel.runningVerticalOscillation = runningVerticalOscillation }
-        if let runningGroundContactTime { existingModel.runningGroundContactTime = runningGroundContactTime }
-        if let walkingStepLength { existingModel.walkingStepLength = walkingStepLength }
-        if let restingHeartRate { existingModel.restingHeartRate = restingHeartRate }
-        if let runningPower { existingModel.runningPower = runningPower }
-        if let runningStrideLength { existingModel.runningStrideLength = runningStrideLength }
-        if let heartRateRecoveryOneMinute { existingModel.heartRateRecoveryOneMinute = heartRateRecoveryOneMinute }
-        if let startTime { existingModel.startTime = startTime }
-        if let endTime { existingModel.endTime = endTime }
+        Self.applyWorkoutSummary(patch, to: existingModel)
+        Self.applyDiaryDetails(patch, to: existingModel)
+        Self.applyWorkoutMetrics(patch, to: existingModel)
 
         do {
             try modelContext.save()
@@ -204,6 +155,56 @@ public final class LivePersistencesRepository: PersistencesRepository {
         } catch {
             throw PersistencesError.deleteFailed
         }
+    }
+
+    // MARK: - Patch 적용
+
+    /// 워크아웃 요약(날짜·거리·시간·페이스·심박·케이던스)을 반영한다.
+    private static func applyWorkoutSummary(
+        _ patch: DiaryPatch,
+        to model: RunningRecordPersistenceModel
+    ) {
+        if let date = patch.date { model.date = date.toDate() }
+        if let distance = patch.distance { model.distance = distance }
+        if let duration = patch.duration { model.duration = duration }
+        if let averagePace = patch.averagePace { model.averagePace = averagePace }
+        if let averageHeartRate = patch.averageHeartRate { model.averageHeartRate = averageHeartRate }
+        if let averageCadence = patch.averageCadence { model.averageCadence = averageCadence }
+    }
+
+    /// 사용자가 기록하는 일지 항목(통증·주법·메모·신발·날씨·난이도·경로)을 반영한다.
+    private static func applyDiaryDetails(
+        _ patch: DiaryPatch,
+        to model: RunningRecordPersistenceModel
+    ) {
+        if let painAreas = patch.painAreas { model.painAreasRawData = PainAreasMapper.encode(painAreas) }
+        if let runningStyle = patch.runningStyle { model.runningStyleRaw = runningStyle.rawValue }
+        if let memo = patch.memo { model.memo = memo }
+        if let shoes = patch.shoes { model.shoes = shoes }
+        if let weather = patch.weather {
+            model.temperature = weather.temperature
+            model.humidity = weather.humidity
+            model.windSpeed = weather.windSpeed
+        }
+        if let difficultyLevel = patch.difficultyLevel { model.difficultyLevelRaw = difficultyLevel.rawValue }
+        if let routeData = patch.routeData { model.routeData = routeData }
+    }
+
+    /// HealthKit에서 가져오는 상세 지표와 운동 시각을 반영한다.
+    private static func applyWorkoutMetrics(
+        _ patch: DiaryPatch,
+        to model: RunningRecordPersistenceModel
+    ) {
+        if let value = patch.activeEnergyBurned { model.activeEnergyBurned = value }
+        if let value = patch.runningVerticalOscillation { model.runningVerticalOscillation = value }
+        if let value = patch.runningGroundContactTime { model.runningGroundContactTime = value }
+        if let value = patch.walkingStepLength { model.walkingStepLength = value }
+        if let value = patch.restingHeartRate { model.restingHeartRate = value }
+        if let value = patch.runningPower { model.runningPower = value }
+        if let value = patch.runningStrideLength { model.runningStrideLength = value }
+        if let value = patch.heartRateRecoveryOneMinute { model.heartRateRecoveryOneMinute = value }
+        if let startTime = patch.startTime { model.startTime = startTime }
+        if let endTime = patch.endTime { model.endTime = endTime }
     }
 
     // MARK: - Helper Methods

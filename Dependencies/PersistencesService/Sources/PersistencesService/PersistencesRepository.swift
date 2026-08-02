@@ -19,32 +19,7 @@ public protocol PersistencesRepository {
         shoeResolver: @escaping @Sendable (String) -> Shoe?
     ) async throws -> [Diary]
     func saveRunningRecord(_ record: Diary) async throws
-    func updateRunningRecord(
-        recordId: UUID,
-        date: YearMonthDay?,
-        distance: Double?,
-        duration: TimeInterval?,
-        averagePace: String?,
-        averageHeartRate: Int?,
-        averageCadence: Int?,
-        painAreas: [PainArea]?,
-        runningStyle: RunninStyle?,
-        memo: String?,
-        shoes: String?,
-        weather: WeatherData?,
-        difficultyLevel: DifficultyLevel?,
-        routeData: Data?,
-        activeEnergyBurned: Double?,
-        runningVerticalOscillation: Double?,
-        runningGroundContactTime: Double?,
-        walkingStepLength: Double?,
-        restingHeartRate: Double?,
-        runningPower: Double?,
-        runningStrideLength: Double?,
-        heartRateRecoveryOneMinute: Double?,
-        startTime: Date?,
-        endTime: Date?
-    ) async throws
+    func updateRunningRecord(recordId: UUID, patch: DiaryPatch) async throws
     func deleteRunningRecord(_ record: Diary) async throws
 }
 

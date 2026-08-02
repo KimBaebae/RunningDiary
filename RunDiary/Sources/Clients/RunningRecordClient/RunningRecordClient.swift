@@ -50,31 +50,7 @@ extension RunningRecordClient: DependencyKey {
             @Dependency(\.persistencesClient) var persistencesClient
             try await persistencesClient.updateRecord(
                 recordId: record.id,
-                date: record.workout.yearMonthDay,
-                distance: record.workout.distance,
-                duration: record.workout.duration,
-                averagePace: record.workout.formattedAveragePace,
-                averageHeartRate: record.workout.averageHeartRate,
-                averageCadence: record.workout.averageCadence,
-                painAreas: record.painAreas,
-                runningStyle: record.runningStyle,
-                memo: record.memo,
-                // update는 nil 필드를 "변경 없음"으로 취급하므로,
-                // 신발 해제를 반영하려면 nil이 아닌 빈 문자열을 보낸다.
-                shoes: record.shoe?.id ?? "",
-                weather: record.weather,
-                difficultyLevel: record.difficultyLevel,
-                routeData: RouteDataMapper.encode(record.workout.route),
-                activeEnergyBurned: record.workout.activeEnergyBurned,
-                runningVerticalOscillation: record.workout.averageVerticalOscillation,
-                runningGroundContactTime: record.workout.averageGroundContactTime,
-                walkingStepLength: record.workout.averageStepLength,
-                restingHeartRate: record.workout.restingHeartRate,
-                runningPower: record.workout.averagePower,
-                runningStrideLength: record.workout.averageStrideLength,
-                heartRateRecoveryOneMinute: record.workout.heartRateRecoveryOneMinute,
-                startTime: record.workout.startTime,
-                endTime: record.workout.endTime
+                patch: .fullUpdate(from: record)
             )
         }
     )

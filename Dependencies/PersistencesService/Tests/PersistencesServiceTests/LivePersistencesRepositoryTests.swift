@@ -205,29 +205,7 @@ struct LivePersistencesRepositoryTests {
         // When
         try await repository.updateRunningRecord(
             recordId: recordId,
-            date: nil,
-            distance: expectedDistance,
-            duration: nil,
-            averagePace: nil,
-            averageHeartRate: nil,
-            averageCadence: nil,
-            painAreas: nil,
-            runningStyle: nil,
-            memo: nil,
-            shoes: nil,
-            weather: nil,
-            difficultyLevel: nil,
-            routeData: nil,
-            activeEnergyBurned: nil,
-            runningVerticalOscillation: nil,
-            runningGroundContactTime: nil,
-            walkingStepLength: nil,
-            restingHeartRate: nil,
-            runningPower: nil,
-            runningStrideLength: nil,
-            heartRateRecoveryOneMinute: nil,
-            startTime: nil,
-            endTime: nil
+            patch: DiaryPatch(distance: expectedDistance)
         )
 
         // Then
@@ -245,29 +223,7 @@ struct LivePersistencesRepositoryTests {
         await #expect(throws: PersistencesError.notFound) {
             try await repository.updateRunningRecord(
                 recordId: nonExistentId,
-                date: nil,
-                distance: 10.0,
-                duration: nil,
-                averagePace: nil,
-                averageHeartRate: nil,
-                averageCadence: nil,
-                painAreas: nil,
-                runningStyle: nil,
-                memo: nil,
-                shoes: nil,
-                weather: nil,
-                difficultyLevel: nil,
-                routeData: nil,
-                activeEnergyBurned: nil,
-                runningVerticalOscillation: nil,
-                runningGroundContactTime: nil,
-                walkingStepLength: nil,
-                restingHeartRate: nil,
-                runningPower: nil,
-                runningStrideLength: nil,
-                heartRateRecoveryOneMinute: nil,
-                startTime: nil,
-                endTime: nil
+                patch: DiaryPatch(distance: 10.0)
             )
         }
     }
@@ -297,29 +253,7 @@ struct LivePersistencesRepositoryTests {
         // When - 거리와 신발만 업데이트
         try await repository.updateRunningRecord(
             recordId: recordId,
-            date: nil,
-            distance: expectedDistance,
-            duration: nil,
-            averagePace: nil,
-            averageHeartRate: nil,
-            averageCadence: nil,
-            painAreas: nil,
-            runningStyle: nil,
-            memo: nil,
-            shoes: expectedShoes,
-            weather: nil,
-            difficultyLevel: nil,
-            routeData: nil,
-            activeEnergyBurned: nil,
-            runningVerticalOscillation: nil,
-            runningGroundContactTime: nil,
-            walkingStepLength: nil,
-            restingHeartRate: nil,
-            runningPower: nil,
-            runningStrideLength: nil,
-            heartRateRecoveryOneMinute: nil,
-            startTime: nil,
-            endTime: nil
+            patch: DiaryPatch(distance: expectedDistance, shoes: expectedShoes)
         )
 
         // Then - 업데이트된 필드 확인
