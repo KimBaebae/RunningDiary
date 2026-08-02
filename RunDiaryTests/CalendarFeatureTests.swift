@@ -47,7 +47,7 @@ struct CalendarFeatureTests {
                 yearMonthDay: startDate,
                 healthKitWorkouts: [],
                 savedRecords: [mockRecord]
-            )
+            ),
         ]
 
         let store = makeTestStore(
@@ -183,7 +183,7 @@ struct CalendarFeatureTests {
 
         let mockRecords: [YearMonthDay: DailyRecord] = [
             june1: DailyRecord(yearMonthDay: june1, healthKitWorkouts: [], savedRecords: [record1]),
-            june15: DailyRecord(yearMonthDay: june15, healthKitWorkouts: [], savedRecords: [record2])
+            june15: DailyRecord(yearMonthDay: june15, healthKitWorkouts: [], savedRecords: [record2]),
         ]
         let store = makeTestStore(selectedDate: june1, mockDailyRecords: mockRecords)
 
@@ -276,7 +276,7 @@ struct CalendarFeatureTests {
         ) {
             CalendarFeature()
         } withDependencies: {
-            $0.runningRecordClient.fetchData = { from, to in
+            $0.runningRecordClient.fetchData = { _, _ in
                 if shouldFail {
                     struct TestError: Error {}
                     throw TestError()

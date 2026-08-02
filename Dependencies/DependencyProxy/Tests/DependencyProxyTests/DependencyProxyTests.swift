@@ -1,4 +1,5 @@
 import Testing
+
 @testable import DependencyProxy
 
 @Test func example() async throws {

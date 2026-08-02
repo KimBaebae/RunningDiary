@@ -189,13 +189,9 @@ struct RunningRecordClientTests {
         let recordToSave = makeDiary(yearMonthDay: testDate)
 
         var savedRecord: Diary?
-        let client = makeTestClient(
-            healthKitWorkouts: [],
-            savedRecords: [],
-            onSave: { record in
-                savedRecord = record
-            }
-        )
+        let client = makeSaveCapturingClient { record in
+            savedRecord = record
+        }
 
         // When
         try await client.saveRecord(recordToSave)
@@ -212,13 +208,9 @@ struct RunningRecordClientTests {
         let recordToUpdate = makeDiary(yearMonthDay: testDate)
 
         var updatedRecord: Diary?
-        let client = makeTestClient(
-            healthKitWorkouts: [],
-            savedRecords: [],
-            onUpdate: { record in
-                updatedRecord = record
-            }
-        )
+        let client = makeUpdateCapturingClient { record in
+            updatedRecord = record
+        }
 
         // When
         try await client.updateRecord(recordToUpdate)
@@ -232,6 +224,25 @@ struct RunningRecordClientTests {
 // MARK: - Test Helpers
 
 private extension RunningRecordClientTests {
+    /// 저장 호출만 캡처하는 클라이언트.
+    ///
+    /// makeTestClient는 뒤에 기본값 파라미터(onUpdate)가 남아
+    /// trailing closure로 넘기면 onUpdate에 잘못 매칭된다.
+    @MainActor
+    func makeSaveCapturingClient(
+        _ onSave: @escaping (Diary) -> Void
+    ) -> RunningRecordClient {
+        makeTestClient(onSave: onSave)
+    }
+
+    /// 업데이트 호출만 캡처하는 클라이언트.
+    @MainActor
+    func makeUpdateCapturingClient(
+        _ onUpdate: @escaping (Diary) -> Void
+    ) -> RunningRecordClient {
+        makeTestClient(onUpdate: onUpdate)
+    }
+
     /// 테스트용 RunningRecordClient 생성
     @MainActor
     func makeTestClient(
@@ -277,7 +288,7 @@ private extension RunningRecordClientTests {
 
                     // 중복 제거: SwiftData에 저장된 것은 HealthKit에서 제외
                     let filteredHealthKit = healthKit.filter { workout in
-                        !saved.contains(where: { $0.workout.startTime == workout.startTime })
+                        !saved.contains { $0.workout.startTime == workout.startTime }
                     }
 
                     result[date] = DailyRecord(
