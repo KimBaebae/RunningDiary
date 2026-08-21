@@ -286,8 +286,8 @@ struct CreateDiaryFeature {
     }
 
     /// 경로의 시작·종료 지점 중간 좌표를 날씨 조회 위치로 사용한다.
-    private func extractLocationFromRoute(_ route: [RoutePoint]) -> CLLocationCoordinate2D? {
-        guard let first = route.first, let last = route.last else { return nil }
+    private func extractLocationFromRoute(_ route: [RoutePoint]?) -> CLLocationCoordinate2D? {
+        guard let first = route?.first, let last = route?.last else { return nil }
 
         let midLatitude = (first.latitude + last.latitude) / 2.0
         let midLongitude = (first.longitude + last.longitude) / 2.0

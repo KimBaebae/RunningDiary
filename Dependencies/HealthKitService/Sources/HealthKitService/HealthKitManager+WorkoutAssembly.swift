@@ -45,30 +45,15 @@ extension HealthKitManager {
             .sumQuantity()?
             .doubleValue(for: HKUnitCatalog.kilocalorie) ?? 0
 
-        let heartRateSeries = tupleSeries(samples.heartRate)
-        let cadenceSeries = tupleSeries(samples.cadence)
-        let powerSeries = tupleSeries(samples.power)
-
-        let splits = WorkoutSplitCalculator.makeSplits(
-            route: routeExtraction.samples,
-            heartRate: heartRateSeries,
-            cadence: cadenceSeries,
-            power: powerSeries
+        let (splits, series) = makeSplitsAndSeries(
+            samples: samples,
+            routeSamples: routeExtraction.samples
         )
-        let series = makeWorkoutSeries(
-            heartRate: heartRateSeries,
-            pace: tupleSeries(samples.paceSecondsPerKm),
-            cadence: cadenceSeries,
-            power: powerSeries,
-            verticalOscillation: tupleSeries(samples.verticalOscillation),
-            groundContactTime: tupleSeries(samples.groundContactTime),
-            strideLength: tupleSeries(samples.strideLength),
-            route: routeExtraction.samples
-        )
+        let runningType = resolveRunningType(from: workout, distanceKm: distance)
 
         return HealthKitWorkout(
             id: workout.uuid,
-            runningType: resolveRunningType(from: workout, distanceKm: distance),
+            runningType: runningType,
             distance: distance,
             duration: workout.duration,
             averagePaceSecondsPerKm: averagePaceSecondsPerKm,
@@ -115,14 +100,52 @@ extension HealthKitManager {
                 fallbackSamples: samples.strideLength
             ) ?? 0,
             heartRateRecoveryOneMinute: heartRateRecoveryOneMinute,
-            route: routeExtraction.route,
+            route: WorkoutRouteResolver.resolve(runningType: runningType, points: routeExtraction.route),
             startDate: workout.startDate,
             endDate: workout.endDate,
+            timeZone: resolveTimeZone(from: workout),
             splits: splits,
             laps: laps,
             series: series,
             zoneSummaries: zoneSummaries,
             samples: samples
+        )
+    }
+
+    /// 원시 샘플과 경로에서 구간(`splits`)과 다운샘플 시계열(`series`)을 함께 도출한다.
+    /// 두 산출물이 심박·케이던스·파워 시계열을 공유하므로 한 번만 변환해 재사용한다.
+    private func makeSplitsAndSeries(
+        samples: WorkoutSampleSet,
+        routeSamples: [(offset: TimeInterval, cumulativeMeters: Double, altitude: Double?)]
+    ) -> (splits: [WorkoutSplit], series: WorkoutSeries?) {
+        let heartRateSeries = tupleSeries(samples.heartRate)
+        let cadenceSeries = tupleSeries(samples.cadence)
+        let powerSeries = tupleSeries(samples.power)
+
+        let splits = WorkoutSplitCalculator.makeSplits(
+            route: routeSamples,
+            heartRate: heartRateSeries,
+            cadence: cadenceSeries,
+            power: powerSeries
+        )
+        let series = makeWorkoutSeries(
+            heartRate: heartRateSeries,
+            pace: tupleSeries(samples.paceSecondsPerKm),
+            cadence: cadenceSeries,
+            power: powerSeries,
+            verticalOscillation: tupleSeries(samples.verticalOscillation),
+            groundContactTime: tupleSeries(samples.groundContactTime),
+            strideLength: tupleSeries(samples.strideLength),
+            route: routeSamples
+        )
+
+        return (splits, series)
+    }
+
+    /// 기록 당시의 타임존을 판별한다. 판별 규칙은 `WorkoutTimeZoneResolver`가 갖는다.
+    func resolveTimeZone(from workout: HKWorkout) -> TimeZone {
+        WorkoutTimeZoneResolver.resolve(
+            identifier: workout.metadata?[HKMetadataKeyTimeZone] as? String
         )
     }
 

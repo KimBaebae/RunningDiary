@@ -170,13 +170,13 @@ private struct ExpandedContentView: View {
             }
 
             // 6. Route Map Section (경로 데이터가 있을 때만)
-            if !record.workout.route.isEmpty {
+            if let route = record.workout.route, !route.isEmpty {
                 Divider()
                     .padding(.vertical, 8)
 
                 RouteMapSection(
                     weather: record.weather,
-                    route: record.workout.route
+                    route: route
                 )
             }
         }
