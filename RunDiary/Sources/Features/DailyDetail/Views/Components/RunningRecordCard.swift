@@ -73,6 +73,7 @@ private struct ExpandedContentView: View {
     private var hasEnvironmentData: Bool {
         record.weather != nil ||
         record.shoe != nil ||
+        record.legacyShoe != nil ||
         record.runningStyle != nil ||
         record.difficultyLevel != nil
     }
@@ -224,7 +225,15 @@ private struct EnvironmentSentenceView: View {
     }
 
     private var shoesName: String? {
-        (resolvedShoe ?? record.shoe)?.displayName
+        if let resolved = (resolvedShoe ?? record.shoe)?.displayName { return resolved }
+
+        // 카탈로그로 해석되지 않은 기록은 저장 원본 문자열을 사람이 읽을 수 있게 풀어 보여준다.
+        return record.legacyShoe.flatMap(LegacyShoeMapper.decodeName(from:))
+    }
+
+    /// 카탈로그 재조회에 쓸 저장 원본 문자열.
+    private var storedShoeId: String? {
+        record.shoe?.id ?? record.legacyShoe
     }
 
     private var styleName: String? {
@@ -250,10 +259,10 @@ private struct EnvironmentSentenceView: View {
             }
         }
         .font(.body)
-        // 기록 조회 시점에 마스터 목록이 없었다면 메타데이터가 빈 신발이 실려 온다.
+        // 기록 조회 시점에 마스터 목록이 없었다면 신발이 legacyShoe로 떨어진다.
         // 목록이 뒤늦게 로드된 경우를 위해 한 번 더 조회한다.
-        .task(id: record.shoe?.id) {
-            guard let id = record.shoe?.id else { return }
+        .task(id: storedShoeId) {
+            guard let id = storedShoeId else { return }
 
             resolvedShoe = await ShoeCache.shared.shoe(id: id)
         }

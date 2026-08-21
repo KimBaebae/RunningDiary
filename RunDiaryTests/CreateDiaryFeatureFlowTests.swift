@@ -126,9 +126,12 @@ struct CreateDiaryFeatureShoesLoadedTests {
     @Test("저장된 신발이 목록 도착 시 정식 항목으로 교체됨")
     func shoesLoaded_matchesExistingRecordShoe() async {
         let shoe = makeShoe(id: "existing-shoe")
-        // 목록 없이 복원된 기록은 메타데이터가 빈 최소 엔티티를 갖는다.
-        let storedShoe = Shoe.unresolved(id: "existing-shoe", displayName: "existing-shoe")
-        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoe: storedShoe)
+        // 목록 없이 복원된 기록은 저장 문자열이 legacyShoe에 남는다.
+        let existing = Diary(
+            workout: makeWorkout(),
+            runningStyle: .midfoot,
+            legacyShoe: "existing-shoe"
+        )
         let store = TestStore(
             initialState: CreateDiaryFeature.State(
                 existingRecord: existing,
@@ -152,8 +155,11 @@ struct CreateDiaryFeatureShoesLoadedTests {
     @Test("저장된 신발이 목록에 없으면 selectedShoe를 비움")
     func shoesLoaded_noMatchingShoe_clearsSelectedShoe() async {
         let shoe = makeShoe(id: "other-shoe")
-        let storedShoe = Shoe.unresolved(id: "not-in-list", displayName: "not-in-list")
-        let existing = Diary(workout: makeWorkout(), runningStyle: .midfoot, shoe: storedShoe)
+        let existing = Diary(
+            workout: makeWorkout(),
+            runningStyle: .midfoot,
+            legacyShoe: "not-in-list"
+        )
         let store = TestStore(
             initialState: CreateDiaryFeature.State(
                 existingRecord: existing,

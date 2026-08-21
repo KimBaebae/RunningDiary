@@ -105,7 +105,7 @@ public extension DiaryPatch {
             painAreas: record.painAreas,
             runningStyle: record.runningStyle,
             memo: record.memo,
-            shoes: record.shoe?.id ?? "",
+            shoes: record.shoe?.id ?? record.legacyShoe ?? "",
             weather: record.weather,
             difficultyLevel: record.difficultyLevel,
             routeData: RouteDataMapper.encode(record.workout.route),

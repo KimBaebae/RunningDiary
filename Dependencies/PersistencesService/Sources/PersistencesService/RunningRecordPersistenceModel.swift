@@ -151,21 +151,28 @@ public extension RunningRecordPersistenceModel {
         )
     }
 
-    /// 저장된 신발 id를 `Shoe`로 복원한다.
-    /// resolver가 마스터 목록에서 찾지 못하면 id만 보존한 최소 엔티티로 되돌린다.
-    private func resolvedShoe(using resolver: (String) -> Shoe?) -> Shoe? {
-        guard let shoes, !shoes.isEmpty else { return nil }
+    /// 저장된 신발 문자열을 카탈로그 `Shoe`와 레거시 문자열로 가른다.
+    ///
+    /// resolver가 해석하면 `shoe`, 못 하면 원본을 가공 없이 `legacyShoe`에 담는다.
+    /// 둘은 상호배타적이며, 원본을 그대로 보존해야 저장 왕복이 무손실이고
+    /// `ShoeIdMigrator`가 카탈로그 id를 찾을 매칭 키도 남는다.
+    private func splitShoe(using resolver: (String) -> Shoe?) -> (shoe: Shoe?, legacy: String?) {
+        guard let shoes, !shoes.isEmpty else { return (nil, nil) }
 
-        return resolver(shoes) ?? Shoe.unresolved(id: shoes, displayName: shoes)
+        guard let resolved = resolver(shoes) else { return (nil, shoes) }
+
+        return (resolved, nil)
     }
 
-    /// - Parameter shoeResolver: 저장된 신발 id를 `Shoe` 엔티티로 복원한다.
+    /// - Parameter shoeResolver: 저장된 신발 id를 카탈로그 `Shoe` 엔티티로 복원한다.
     ///   신발 마스터 데이터는 영속 계층이 아닌 원격/캐시에 있으므로 외부에서 주입받는다.
+    ///   해석에 실패한 값은 `Diary.legacyShoe`로 넘어간다.
     func toDomain(shoeResolver: (String) -> Shoe? = { _ in nil }) -> Diary {
         // Convert raw values to enums
         let painAreas = PainAreasMapper.decode(painAreasRawData)
         let runningStyle = runningStyleRaw.flatMap { RunninStyle(rawValue: $0) }
         let difficultyLevel = difficultyLevelRaw.flatMap { DifficultyLevel(rawValue: $0) }
+        let shoe = splitShoe(using: shoeResolver)
 
         return Diary(
             id: id,
@@ -195,7 +202,8 @@ public extension RunningRecordPersistenceModel {
             painAreas: painAreas,
             runningStyle: runningStyle,
             memo: memo,
-            shoe: resolvedShoe(using: shoeResolver),
+            shoe: shoe.shoe,
+            legacyShoe: shoe.legacy,
             weather: weatherData,
             userWeather: userWeatherData,
             difficultyLevel: difficultyLevel
@@ -214,7 +222,7 @@ public extension RunningRecordPersistenceModel {
             painAreasRaw: record.painAreas.map { $0.rawValue },
             runningStyleRaw: record.runningStyle?.rawValue,
             memo: record.memo,
-            shoes: record.shoe?.id,
+            shoes: record.shoe?.id ?? record.legacyShoe,
             temperature: record.weather?.temperature,
             humidity: record.weather?.humidity,
             windSpeed: record.weather?.windSpeed,

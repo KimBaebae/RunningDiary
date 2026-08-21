@@ -7,6 +7,10 @@
 
 import Foundation
 
+/// 서버 신발 카탈로그의 한 항목.
+///
+/// 이 타입은 카탈로그에서 조회한 신발만 표현한다.
+/// 카탈로그로 해석되지 않은 로컬 저장 문자열은 `Shoe`로 위장하지 않고 `Diary.legacyShoe`가 보관한다.
 public struct Shoe: Identifiable, Equatable, Hashable, Sendable, Decodable {
     public let id: String
     public let brandName: String
@@ -52,24 +56,5 @@ public struct Shoe: Identifiable, Equatable, Hashable, Sendable, Decodable {
         self.pros = pros
         self.cons = cons
         self.description = description
-    }
-
-    /// 마스터 목록에서 해당 id를 찾지 못했을 때 쓰는 최소 엔티티.
-    /// 저장된 id와 표시 이름만 보존하고 나머지 메타데이터는 비운다.
-    public static func unresolved(id: String, displayName: String) -> Shoe {
-        Shoe(
-            id: id,
-            brandName: "",
-            name: displayName,
-            nameKo: displayName,
-            category: [:],
-            subcategory: [:],
-            tags: [],
-            imageUrl: nil,
-            reviewSummary: nil,
-            pros: [],
-            cons: [],
-            description: nil
-        )
     }
 }

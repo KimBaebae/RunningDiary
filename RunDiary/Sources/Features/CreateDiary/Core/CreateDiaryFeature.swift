@@ -176,11 +176,12 @@ struct CreateDiaryFeature {
             case .shoesLoaded(let shoes):
                 state.shoes = shoes
                 state.isShoesLoading = false
-                // 저장된 신발은 마스터 목록 없이 복원돼 메타데이터가 비어 있을 수 있다.
+                // 저장된 신발은 마스터 목록 없이 복원되면 legacyShoe로 떨어진다.
                 // 목록이 도착하면 정식 항목으로 교체하고, 목록에 없으면 선택을 비운다.
-                state.selectedShoe = state.selectedShoe.flatMap { selected in
-                    shoes.first { $0.id == selected.id }
-                }
+                state.selectedShoe = state.selectedShoe
+                    .flatMap { selected in shoes.first { $0.id == selected.id } }
+                    ?? state.existingRecord?.legacyShoe
+                        .flatMap { ShoeIdMigrator.resolve(legacyShoe: $0, in: shoes) }
                 return .none
 
             case .shoesLoadFailed:

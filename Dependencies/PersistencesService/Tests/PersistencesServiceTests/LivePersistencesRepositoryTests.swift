@@ -77,7 +77,8 @@ struct LivePersistencesRepositoryTests {
             painAreas: painAreas,
             runningStyle: runningStyle,
             memo: memo,
-            shoe: shoeId.map { Shoe.unresolved(id: $0, displayName: $0) },
+            // 테스트 저장소는 카탈로그 resolver를 주입하지 않으므로 저장 문자열이 legacyShoe로 복원된다.
+            legacyShoe: shoeId,
             weather: weather,
             difficultyLevel: difficultyLevel
         )
@@ -259,7 +260,7 @@ struct LivePersistencesRepositoryTests {
         // Then - 업데이트된 필드 확인
         let fetched = try await repository.fetchRunningRecord(for: testDate.toDate())
         #expect(fetched?.workout.distance == expectedDistance)
-        #expect(fetched?.shoe?.id == expectedShoes)
+        #expect(fetched?.legacyShoe == expectedShoes)
 
         // 업데이트하지 않은 필드는 원래 값 유지
         #expect(fetched?.workout.duration == 1800)
