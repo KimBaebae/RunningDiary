@@ -58,24 +58,49 @@ extension HealthKitManager {
             && route.isEmpty
         guard !isEmpty else { return nil }
 
-        let elevation = route.compactMap { sample -> ElevationPoint? in
+        let rawElevation = route.compactMap { sample -> ElevationPoint? in
             guard let altitude = sample.altitude else { return nil }
             return ElevationPoint(distanceM: sample.cumulativeMeters, altitude: altitude)
         }
 
         let interval = Constant.seriesIntervalSec
 
+        // 거리축이라 시간 버킷 평균을 쓸 수 없어 개수 상한만 적용한다.
+        let elevation = WorkoutSeriesBuilder.capPoints(rawElevation)
+        let heartRateOutput = WorkoutSeriesBuilder.downsample(heartRate, intervalSec: interval)
+        let paceOutput = WorkoutSeriesBuilder.downsample(pace, intervalSec: interval)
+        let cadenceOutput = WorkoutSeriesBuilder.downsample(cadence, intervalSec: interval)
+        let powerOutput = WorkoutSeriesBuilder.downsample(power, intervalSec: interval)
+        // 수직 진폭(cm)·보폭 길이(m)는 값이 작아 정수 반올림 시 정보가 소멸하므로 소수 정밀도를 유지한다.
+        let verticalOscillationOutput = WorkoutSeriesBuilder.downsampleDecimal(
+            verticalOscillation,
+            intervalSec: interval
+        )
+        let groundContactTimeOutput = WorkoutSeriesBuilder.downsample(groundContactTime, intervalSec: interval)
+        let strideLengthOutput = WorkoutSeriesBuilder.downsampleDecimal(strideLength, intervalSec: interval)
+
+        let metadata: [SeriesMetric: SeriesSamplingMetadata] = [
+            .heartRate: heartRateOutput.metadata,
+            .paceSecondsPerKm: paceOutput.metadata,
+            .cadence: cadenceOutput.metadata,
+            .power: powerOutput.metadata,
+            .verticalOscillation: verticalOscillationOutput.metadata,
+            .groundContactTime: groundContactTimeOutput.metadata,
+            .strideLength: strideLengthOutput.metadata,
+            .elevation: elevation.metadata,
+        ].filter { $0.value.originalSampleCount > 0 }
+
         return WorkoutSeries(
             sampleIntervalSec: interval,
-            heartRate: WorkoutSeriesBuilder.downsample(heartRate, intervalSec: interval),
-            paceSecondsPerKm: WorkoutSeriesBuilder.downsample(pace, intervalSec: interval),
-            cadence: WorkoutSeriesBuilder.downsample(cadence, intervalSec: interval),
-            power: WorkoutSeriesBuilder.downsample(power, intervalSec: interval),
-            // 수직 진폭(cm)·보폭 길이(m)는 값이 작아 정수 반올림 시 정보가 소멸하므로 소수 정밀도를 유지한다.
-            verticalOscillation: WorkoutSeriesBuilder.downsampleDecimal(verticalOscillation, intervalSec: interval),
-            groundContactTime: WorkoutSeriesBuilder.downsample(groundContactTime, intervalSec: interval),
-            strideLength: WorkoutSeriesBuilder.downsampleDecimal(strideLength, intervalSec: interval),
-            elevation: elevation
+            heartRate: heartRateOutput.points,
+            paceSecondsPerKm: paceOutput.points,
+            cadence: cadenceOutput.points,
+            power: powerOutput.points,
+            verticalOscillation: verticalOscillationOutput.points,
+            groundContactTime: groundContactTimeOutput.points,
+            strideLength: strideLengthOutput.points,
+            elevation: elevation.points,
+            metadata: metadata
         )
     }
 }

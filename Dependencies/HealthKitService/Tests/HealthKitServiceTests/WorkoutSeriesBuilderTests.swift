@@ -19,7 +19,7 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 5)
 
         // Then
-        #expect(result == expectedPoints)
+        #expect(result.points == expectedPoints)
     }
 
     @Test("단일 샘플은 버킷 규칙대로 t가 계산된 포인트 1개를 반환한다")
@@ -32,7 +32,7 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 5)
 
         // Then
-        #expect(result == expectedPoints)
+        #expect(result.points == expectedPoints)
     }
 
     // MARK: - 버킷 평균
@@ -51,7 +51,7 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 5)
 
         // Then
-        #expect(result == expectedPoints)
+        #expect(result.points == expectedPoints)
     }
 
     @Test("서로 다른 버킷의 샘플은 각각 독립된 포인트로 분리된다")
@@ -72,7 +72,7 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 5)
 
         // Then
-        #expect(result == expectedPoints)
+        #expect(result.points == expectedPoints)
     }
 
     // MARK: - maxPoints 상한 / 결정성
@@ -92,9 +92,9 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 1, maxPoints: maxPoints)
 
         // Then
-        #expect(result.count == expectedCount)
-        #expect(result.first == expectedFirstPoint)
-        #expect(result.last == expectedLastPoint)
+        #expect(result.points.count == expectedCount)
+        #expect(result.points.first == expectedFirstPoint)
+        #expect(result.points.last == expectedLastPoint)
     }
 
     @Test("동일한 입력으로 반복 호출해도 항상 같은 결과를 반환한다")
@@ -110,7 +110,108 @@ struct WorkoutSeriesBuilderTests {
         let secondResult = WorkoutSeriesBuilder.downsample(samples, intervalSec: 1, maxPoints: maxPoints)
 
         // Then
-        #expect(firstResult == secondResult)
+        #expect(firstResult.points == secondResult.points)
+        #expect(firstResult.metadata == secondResult.metadata)
+    }
+
+    // MARK: - 샘플링 메타데이터
+
+    @Test("기본 상한은 서버 계약과 같은 2000이다")
+    func defaultMaxPoints_matchesServerContract() {
+        // Given
+        let expectedMaxPoints = 2_000
+
+        // Then
+        #expect(WorkoutSeriesBuilder.defaultMaxPoints == expectedMaxPoints)
+    }
+
+    @Test("상한에 걸리지 않으면 samplingMethod가 fixedIntervalAverage다")
+    func downsample_reportsFixedIntervalAverage_whenUnderMaxPoints() {
+        // Given
+        let samples: [(offset: TimeInterval, value: Double)] = (0..<100).map {
+            (offset: TimeInterval($0), value: Double($0))
+        }
+        let expectedMethod = SeriesSamplingMethod.fixedIntervalAverage
+        let expectedOriginalCount = 100
+
+        // When
+        let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 1)
+
+        // Then
+        #expect(result.metadata.samplingMethod == expectedMethod)
+        #expect(result.metadata.originalSampleCount == expectedOriginalCount)
+    }
+
+    @Test("상한을 넘겨 균등 축소되면 samplingMethod가 uniform이고 원본 개수가 보존된다")
+    func downsample_reportsUniformAndOriginalCount_whenOverMaxPoints() {
+        // Given
+        let originalCount = 3_000
+        let samples: [(offset: TimeInterval, value: Double)] = (0..<originalCount).map {
+            (offset: TimeInterval($0), value: Double($0))
+        }
+        let expectedMethod = SeriesSamplingMethod.uniform
+        let expectedPointCount = WorkoutSeriesBuilder.defaultMaxPoints
+
+        // When
+        let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 1)
+
+        // Then
+        #expect(result.points.count == expectedPointCount)
+        #expect(result.metadata.samplingMethod == expectedMethod)
+        #expect(result.metadata.originalSampleCount == originalCount)
+    }
+
+    @Test("버킷 평균으로 상한 이하가 되면 원본이 상한을 넘어도 uniform이 아니다")
+    func downsample_reportsFixedIntervalAverage_whenBucketingAloneMeetsCap() {
+        // Given - 원본 6000개가 5초 버킷 평균으로 1200개가 되어 상한 2000 이하로 내려간다
+        let originalCount = 6_000
+        let samples: [(offset: TimeInterval, value: Double)] = (0..<originalCount).map {
+            (offset: TimeInterval($0), value: Double($0))
+        }
+        let expectedMethod = SeriesSamplingMethod.fixedIntervalAverage
+        let expectedPointCount = 1_200
+
+        // When
+        let result = WorkoutSeriesBuilder.downsample(samples, intervalSec: 5)
+
+        // Then
+        #expect(result.points.count == expectedPointCount)
+        #expect(result.metadata.samplingMethod == expectedMethod)
+        #expect(result.metadata.originalSampleCount == originalCount)
+    }
+
+    // MARK: - capPoints (거리축 elevation)
+
+    @Test("capPoints는 상한 이하면 원본을 그대로 두고 none으로 보고한다")
+    func capPoints_keepsOriginal_whenUnderMaxPoints() {
+        // Given
+        let points = (0..<10).map { ElevationPoint(distanceM: Double($0), altitude: Double($0)) }
+        let expectedMethod = SeriesSamplingMethod.none
+
+        // When
+        let result = WorkoutSeriesBuilder.capPoints(points)
+
+        // Then
+        #expect(result.points == points)
+        #expect(result.metadata.samplingMethod == expectedMethod)
+        #expect(result.metadata.originalSampleCount == points.count)
+    }
+
+    @Test("capPoints는 상한을 넘으면 2000개로 균등 축소하고 uniform으로 보고한다")
+    func capPoints_reducesToMaxPoints_whenOverMaxPoints() {
+        // Given
+        let originalCount = 5_000
+        let points = (0..<originalCount).map { ElevationPoint(distanceM: Double($0), altitude: Double($0)) }
+        let expectedMethod = SeriesSamplingMethod.uniform
+        let expectedPointCount = WorkoutSeriesBuilder.defaultMaxPoints
+
+        // When
+        let result = WorkoutSeriesBuilder.capPoints(points)
+
+        // Then
+        #expect(result.points.count == expectedPointCount)
+        #expect(result.metadata.samplingMethod == expectedMethod)
+        #expect(result.metadata.originalSampleCount == originalCount)
     }
 
     // MARK: - 소수 정밀도 보존 (downsampleDecimal)
@@ -125,7 +226,7 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
 
         // Then
-        #expect(result == expectedPoints)
+        #expect(result.points == expectedPoints)
     }
 
     @Test("같은 버킷의 소수 값도 평균되어 소수로 남는다")
@@ -142,9 +243,9 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
 
         // Then
-        #expect(result.count == 1)
-        #expect(result.first?.t == 0)
-        #expect(abs((result.first?.v ?? 0) - expectedValue) < tolerance)
+        #expect(result.points.count == 1)
+        #expect(result.points.first?.t == 0)
+        #expect(abs((result.points.first?.v ?? 0) - expectedValue) < tolerance)
     }
 
     @Test("정수 다운샘플과 달리 1 미만 값이 0으로 소멸하지 않는다")
@@ -159,8 +260,8 @@ struct WorkoutSeriesBuilderTests {
         let decimalResult = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
 
         // Then
-        #expect(integerResult.first?.v == expectedIntegerValue)
-        #expect(decimalResult.first?.v == expectedDecimalValue)
+        #expect(integerResult.points.first?.v == expectedIntegerValue)
+        #expect(decimalResult.points.first?.v == expectedDecimalValue)
     }
 
     @Test("빈 입력이면 빈 배열을 반환한다")
@@ -173,6 +274,6 @@ struct WorkoutSeriesBuilderTests {
         let result = WorkoutSeriesBuilder.downsampleDecimal(samples, intervalSec: 5)
 
         // Then
-        #expect(result == expectedPoints)
+        #expect(result.points == expectedPoints)
     }
 }

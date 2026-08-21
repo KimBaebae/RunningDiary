@@ -23,6 +23,9 @@ public struct WorkoutSeries: Equatable, Sendable, Codable {
     public let strideLength: [MetricSeriesPoint]           // m
     public let elevation: [ElevationPoint]                 // 거리축 고도 프로파일
 
+    /// 지표별 다운샘플 이력. 수집하지 못한 지표는 키가 없다.
+    public let metadata: [SeriesMetric: SeriesSamplingMetadata]
+
     public init(
         sampleIntervalSec: Int?,
         heartRate: [SeriesPoint],
@@ -32,7 +35,8 @@ public struct WorkoutSeries: Equatable, Sendable, Codable {
         verticalOscillation: [MetricSeriesPoint] = [],
         groundContactTime: [SeriesPoint] = [],
         strideLength: [MetricSeriesPoint] = [],
-        elevation: [ElevationPoint]
+        elevation: [ElevationPoint],
+        metadata: [SeriesMetric: SeriesSamplingMetadata] = [:]
     ) {
         self.sampleIntervalSec = sampleIntervalSec
         self.heartRate = heartRate
@@ -43,5 +47,6 @@ public struct WorkoutSeries: Equatable, Sendable, Codable {
         self.groundContactTime = groundContactTime
         self.strideLength = strideLength
         self.elevation = elevation
+        self.metadata = metadata
     }
 }
