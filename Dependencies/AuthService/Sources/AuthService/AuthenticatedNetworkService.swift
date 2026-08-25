@@ -28,7 +28,10 @@ public struct AuthenticatedNetworkService {
     private let refresher: TokenRefreshing
 
     public init(
-        service: NetworkService = URLSessionService(),
+        service: NetworkService = URLSessionService(
+            encoder: AuthNetworkCoding.encoder(),
+            decoder: AuthNetworkCoding.decoder()
+        ),
         refresher: TokenRefreshing
     ) {
         self.service = service
@@ -39,7 +42,7 @@ public struct AuthenticatedNetworkService {
         do {
             return try await service.request(api)
         } catch let error as NetworkError {
-            guard case .httpError(let statusCode) = error, statusCode == 401 else {
+            guard case .httpError(let statusCode, _) = error, statusCode == 401 else {
                 AuthLogger.error("인증 요청 실패 \(API.self)", error: error)
                 throw error
             }

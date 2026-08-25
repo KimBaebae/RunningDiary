@@ -29,7 +29,10 @@ public actor TokenRefresher: TokenRefreshing {
 
     public init(
         baseURL: String,
-        service: NetworkService = URLSessionService(),
+        service: NetworkService = URLSessionService(
+            encoder: AuthNetworkCoding.encoder(),
+            decoder: AuthNetworkCoding.decoder()
+        ),
         storage: SecureStoring = KeychainStorage()
     ) {
         self.baseURL = baseURL

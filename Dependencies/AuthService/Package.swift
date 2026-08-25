@@ -15,7 +15,7 @@ let package = Package(
     dependencies: [
         .package(path: "../Models"),
         .package(path: "../SecureStorage"),
-        .package(url: "https://github.com/khyeji98/SimpleNetwork.git", .upToNextMajor(from: "1.1.0")),
+        .package(url: "https://github.com/khyeji98/SimpleNetwork.git", .upToNextMajor(from: "2.0.0")),
     ],
     targets: [
         .target(

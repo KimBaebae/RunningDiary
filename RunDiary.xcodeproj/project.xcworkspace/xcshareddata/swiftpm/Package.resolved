@@ -1,5 +1,5 @@
 {
-  "originHash" : "3387156474505a77e9ddd114c0ab7e6832d92c9ede9813015108e8c173ca3bbe",
+  "originHash" : "14218982abc96bbb724fa25d05cdb400644b77bfc8643a43bc26ad0ffedfe1df",
   "pins" : [
     {
       "identity" : "combine-schedulers",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/khyeji98/SimpleNetwork.git",
       "state" : {
-        "revision" : "b8425f632a0c51b37b2ebfec72320cdf4c37d0a1",
-        "version" : "1.2.0"
+        "revision" : "fc0ee697ed5f7639b7cade13dae4a116959ce5ea",
+        "version" : "2.0.0"
       }
     },
     {

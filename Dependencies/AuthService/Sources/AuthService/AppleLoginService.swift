@@ -19,7 +19,10 @@ public struct AppleLoginService: AppleLoginProviding {
 
     public init(
         baseURL: String,
-        service: NetworkService = URLSessionService()
+        service: NetworkService = URLSessionService(
+            encoder: AuthNetworkCoding.encoder(),
+            decoder: AuthNetworkCoding.decoder()
+        )
     ) {
         self.baseURL = baseURL
         self.service = service

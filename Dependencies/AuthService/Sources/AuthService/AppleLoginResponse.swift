@@ -9,8 +9,9 @@ import Models
 
 /// 서버 응답 DTO.
 ///
-/// `AuthSession`은 명시적 snake_case `CodingKeys`를 가지고 있어 SimpleNetwork의
-/// `convertFromSnakeCase` 디코더와 충돌하므로, 디코딩 전용 camelCase DTO를 별도로 둔다.
+/// `AuthSession`은 명시적 snake_case `CodingKeys`를 가지고 있어 AuthService가 주입하는
+/// `convertFromSnakeCase` 디코더(`AuthNetworkCoding.decoder()`)와 충돌하므로,
+/// 디코딩 전용 camelCase DTO를 별도로 둔다.
 struct AppleLoginResponse: Decodable, Sendable {
     let accessToken: String
     let tokenType: String
