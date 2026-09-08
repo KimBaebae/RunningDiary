@@ -37,6 +37,20 @@ public struct CreateDiaryRequest: Encodable, Equatable, Sendable {
         self.difficultyLevel = difficultyLevel
     }
 
+    /// `workout`만 교체한 복사본을 만든다. 나머지 필드가 늘어나도 이 호출부 하나만
+    /// 이니셜라이저 전체를 알면 되도록 재구성 지점을 한 곳에 모은다.
+    public func replacingWorkout(_ workout: WorkoutRequest) -> CreateDiaryRequest {
+        CreateDiaryRequest(
+            workout: workout,
+            weather: weather,
+            painAreas: painAreas,
+            runningStyle: runningStyle,
+            memo: memo,
+            shoeId: shoeId,
+            difficultyLevel: difficultyLevel
+        )
+    }
+
     private enum CodingKeys: String, CodingKey {
         case workout
         case weather

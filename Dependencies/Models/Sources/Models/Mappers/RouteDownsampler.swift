@@ -48,29 +48,33 @@ public enum RouteDownsampler {
             )
         }
 
-        // 양 끝을 고정하고 그 사이를 균등 분할해야 경로의 시작·종료 지점이 밀리지 않는다.
-        // maxPoints가 1이면 나눌 사이 구간이 없으므로 첫 지점만 남긴다.
-        guard maxPoints > 1 else {
-            return Output(
-                points: [route[0]],
-                originalPointCount: originalCount,
-                samplingMethod: .uniform
-            )
-        }
+        return Output(
+            points: uniformlyReduced(route, maxPoints: maxPoints),
+            originalPointCount: originalCount,
+            samplingMethod: .uniform
+        )
+    }
+
+    /// 배열을 `maxPoints` 이하로 균등 축소한다. 첫·마지막 원소를 보존하고 순서를 유지하며,
+    /// 같은 입력에는 항상 같은 출력이 나온다.
+    public static func uniformlyReduced<T>(_ items: [T], maxPoints: Int) -> [T] {
+        let originalCount = items.count
+
+        guard originalCount > maxPoints, maxPoints > 0 else { return items }
+
+        // 양 끝을 고정하고 그 사이를 균등 분할해야 배열의 시작·종료 원소가 밀리지 않는다.
+        // maxPoints가 1이면 나눌 사이 구간이 없으므로 첫 원소만 남긴다.
+        guard maxPoints > 1 else { return [items[0]] }
 
         let stride = Double(originalCount - 1) / Double(maxPoints - 1)
-        var reduced: [RoutePoint] = []
+        var reduced: [T] = []
         reduced.reserveCapacity(maxPoints)
 
         for index in 0..<maxPoints {
             let sourceIndex = min(Int((Double(index) * stride).rounded()), originalCount - 1)
-            reduced.append(route[sourceIndex])
+            reduced.append(items[sourceIndex])
         }
 
-        return Output(
-            points: reduced,
-            originalPointCount: originalCount,
-            samplingMethod: .uniform
-        )
+        return reduced
     }
 }

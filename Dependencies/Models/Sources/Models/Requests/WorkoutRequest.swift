@@ -134,6 +134,45 @@ public struct WorkoutRequest: Encodable, Equatable, Sendable {
         case series
     }
 
+    /// route 3필드(`route`·`routeOriginalPointCount`·`routeSamplingMethod`)만 교체한 복사본을 만든다.
+    ///
+    /// 필드가 28개라 매번 전체 이니셜라이저를 손으로 채우면 새 필드 추가 시 이 호출부만
+    /// 조용히 누락되기 쉽다. route 관련 필드를 재구성하는 지점을 이 메서드 하나로 모아
+    /// 이니셜라이저 호출을 한 곳에만 둔다. `routeOriginalPointCount`는 최초 원본 개수를
+    /// 유지해야 하므로 `self`의 값을 그대로 전달한다(파라미터로 받지 않는다).
+    public func replacingRoute(points: [RoutePointRequest]?, samplingMethod: String) -> WorkoutRequest {
+        WorkoutRequest(
+            id: id,
+            startTime: startTime,
+            endTime: endTime,
+            timeZone: timeZone,
+            runningType: runningType,
+            distance: distance,
+            duration: duration,
+            elapsedTime: elapsedTime,
+            averagePaceSecondsPerKm: averagePaceSecondsPerKm,
+            averageHeartRate: averageHeartRate,
+            averageCadence: averageCadence,
+            averagePower: averagePower,
+            averageVerticalOscillation: averageVerticalOscillation,
+            averageGroundContactTime: averageGroundContactTime,
+            averageStepLength: averageStepLength,
+            averageStrideLength: averageStrideLength,
+            activeEnergyBurned: activeEnergyBurned,
+            totalEnergyBurned: totalEnergyBurned,
+            elevationAscended: elevationAscended,
+            restingHeartRate: restingHeartRate,
+            heartRateRecoveryOneMinute: heartRateRecoveryOneMinute,
+            route: points,
+            routeOriginalPointCount: routeOriginalPointCount,
+            routeSamplingMethod: samplingMethod,
+            splits: splits,
+            laps: laps,
+            zoneSummaries: zoneSummaries,
+            series: series
+        )
+    }
+
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
