@@ -60,9 +60,6 @@ private struct StepContent: View {
             case .fitness:
                 Step1FitnessView(workout: store.healthKitWorkout)
 
-            case .weather:
-                Step2WeatherView(store: store)
-
             case .shoes:
                 Step3ShoesView(store: store)
 

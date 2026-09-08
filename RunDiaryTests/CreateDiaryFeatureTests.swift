@@ -19,10 +19,10 @@ struct CreateDiaryFeatureStepTests {
         let store = makeStore()
 
         await store.send(.nextStepTapped) {
-            $0.currentStep = .weather
+            $0.currentStep = .shoes
         }
         await store.send(.nextStepTapped) {
-            $0.currentStep = .shoes
+            $0.currentStep = .runningStyle
         }
     }
 
@@ -45,7 +45,7 @@ struct CreateDiaryFeatureStepTests {
     @Test("previousStepTapped goes back one step")
     func previousStepTapped_goesBack() async {
         let store = makeStore { state in
-            state.currentStep = .weather
+            state.currentStep = .shoes
         }
 
         await store.send(.previousStepTapped) {
@@ -55,59 +55,24 @@ struct CreateDiaryFeatureStepTests {
 }
 
 @MainActor
-@Suite("CreateDiaryFeature weather step edits")
+@Suite("CreateDiaryFeature weather fetch")
 struct CreateDiaryFeatureWeatherTests {
 
-    @Test("updateSkyCondition stores the value")
-    func updateSkyCondition() async {
-        let store = makeStore()
-        await store.send(.updateSkyCondition(.cloudy)) {
-            $0.skyCondition = .cloudy
-        }
-    }
-
-    @Test("updateWindLevel stores the value")
-    func updateWindLevel() async {
-        let store = makeStore()
-        await store.send(.updateWindLevel(.strong)) {
-            $0.windLevel = .strong
-        }
-    }
-
-    @Test("updateFeelsLike stores the value")
-    func updateFeelsLike() async {
-        let store = makeStore()
-        await store.send(.updateFeelsLike(.cold)) {
-            $0.feelsLike = .cold
-        }
-    }
-
-    @Test("updateHumidityLevel stores the value")
-    func updateHumidityLevel() async {
-        let store = makeStore()
-        await store.send(.updateHumidityLevel(.humid)) {
-            $0.humidityLevel = .humid
-        }
-    }
-
-    @Test("weatherFetched copies classification fields into state")
-    func weatherFetched_copiesClassification() async {
+    @Test("weatherFetched stores the raw weather values into state")
+    func weatherFetched_storesWeather() async {
         let store = makeStore()
 
         let fetched = WeatherData(
             temperature: 25,
             humidity: 80,
             windSpeed: 6,
+            apparentTemperature: 28,
             cloudCover: 0.8,
-            apparentTemperature: 28
+            precipitationAmount: 1.2
         )
 
         await store.send(.weatherFetched(fetched)) {
             $0.weather = fetched
-            $0.skyCondition = .cloudy
-            $0.windLevel = .strong
-            $0.feelsLike = .hot
-            $0.humidityLevel = .humid
         }
     }
 }
@@ -116,18 +81,17 @@ struct CreateDiaryFeatureWeatherTests {
 @Suite("CreateDiaryFeature save")
 struct CreateDiaryFeatureSaveTests {
 
-    @Test("saveRecord merges user-edited classification into weather and persists")
-    func saveRecord_mergesWeather() async {
+    @Test("saveRecord persists the fetched weather as-is")
+    func saveRecord_persistsFetchedWeather() async {
         let workout = makeWorkout()
 
         let baseWeather = WeatherData(
             temperature: 18,
             humidity: 50,
             windSpeed: 1,
-            skyCondition: .sunny,
-            windLevel: .weak,
-            feelsLike: .neutral,
-            humidityLevel: .dry
+            apparentTemperature: 17,
+            cloudCover: 0.3,
+            precipitationAmount: 0
         )
 
         var capturedRecord: Diary?
@@ -153,22 +117,12 @@ struct CreateDiaryFeatureSaveTests {
         await store.send(.updateSelectedShoe(shoe))
         await store.send(.updateSelectedRunningStyle(.midfoot))
         await store.send(.weatherFetched(baseWeather))
-        await store.send(.updateSkyCondition(.cloudy))
-        await store.send(.updateWindLevel(.strong))
-        await store.send(.updateFeelsLike(.hot))
-        await store.send(.updateHumidityLevel(.humid))
 
         await store.send(.saveRecord)
         await store.skipReceivedActions()
 
         let saved = try? #require(capturedRecord)
-        #expect(saved?.weather?.temperature == 18)
-        #expect(saved?.weather?.humidity == 50)
-        #expect(saved?.weather?.windSpeed == 1)
-        #expect(saved?.weather?.skyCondition == .cloudy)
-        #expect(saved?.weather?.windLevel == .strong)
-        #expect(saved?.weather?.feelsLike == .hot)
-        #expect(saved?.weather?.humidityLevel == .humid)
+        #expect(saved?.weather == baseWeather)
     }
 }
 
@@ -176,17 +130,16 @@ struct CreateDiaryFeatureSaveTests {
 @Suite("CreateDiaryFeature initial state")
 struct CreateDiaryFeatureInitTests {
 
-    @Test("init with existing weather populates classification fields")
-    func init_existingWeather_populatesClassification() {
+    @Test("init with existing weather copies it into state as-is")
+    func init_existingWeather_copiesWeather() {
         let workout = makeWorkout()
         let weather = WeatherData(
             temperature: 5,
             humidity: 80,
             windSpeed: 6,
-            skyCondition: .cloudy,
-            windLevel: .strong,
-            feelsLike: .cold,
-            humidityLevel: .humid
+            apparentTemperature: 2,
+            cloudCover: 0.9,
+            precipitationAmount: 3
         )
         let existing = Diary(
             workout: workout,
@@ -199,20 +152,14 @@ struct CreateDiaryFeatureInitTests {
             healthKitWorkout: workout
         )
 
-        #expect(state.skyCondition == .cloudy)
-        #expect(state.windLevel == .strong)
-        #expect(state.feelsLike == .cold)
-        #expect(state.humidityLevel == .humid)
+        #expect(state.weather == weather)
     }
 
-    @Test("init without existing record leaves classification nil")
-    func init_noExistingRecord_classificationIsNil() {
+    @Test("init without existing record leaves weather nil")
+    func init_noExistingRecord_weatherIsNil() {
         let state = CreateDiaryFeature.State(healthKitWorkout: makeWorkout())
 
-        #expect(state.skyCondition == nil)
-        #expect(state.windLevel == nil)
-        #expect(state.feelsLike == nil)
-        #expect(state.humidityLevel == nil)
+        #expect(state.weather == nil)
         #expect(state.currentStep == .fitness)
     }
 }

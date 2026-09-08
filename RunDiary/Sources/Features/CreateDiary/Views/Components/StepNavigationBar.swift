@@ -39,12 +39,6 @@ struct StepNavigationBar: View {
     private var canGoNext: Bool {
         switch store.currentStep {
         case .fitness: return true
-        case .weather:
-            return store.skyCondition != nil
-                && store.windLevel != nil
-                && store.feelsLike != nil
-                && store.humidityLevel != nil
-
         case .shoes: return store.selectedShoe != nil
         case .runningStyle: return store.selectedRunningStyle != nil
         case .painAreas: return true

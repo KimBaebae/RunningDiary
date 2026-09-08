@@ -129,28 +129,6 @@ public extension RunningRecordPersistenceModel {
         )
     }
 
-    /// 유저가 선택한 날씨 (하나라도 존재하면 UserWeather 구성)
-    private var userWeatherData: UserWeather? {
-        let skyCondition = skyConditionRaw.flatMap { SkyCondition(rawValue: $0) }
-        let windLevel = windLevelRaw.flatMap { WindLevel(rawValue: $0) }
-        let feelsLike = feelsLikeRaw.flatMap { FeelsLikeLevel(rawValue: $0) }
-        let humidityLevel = humidityLevelRaw.flatMap { HumidityLevel(rawValue: $0) }
-
-        guard
-            skyCondition != nil
-                || windLevel != nil
-                || feelsLike != nil
-                || humidityLevel != nil
-        else { return nil }
-
-        return UserWeather(
-            skyCondition: skyCondition,
-            windLevel: windLevel,
-            feelsLike: feelsLike,
-            humidityLevel: humidityLevel
-        )
-    }
-
     /// 저장된 신발 문자열을 카탈로그 `Shoe`와 레거시 문자열로 가른다.
     ///
     /// resolver가 해석하면 `shoe`, 못 하면 원본을 가공 없이 `legacyShoe`에 담는다.
@@ -205,7 +183,6 @@ public extension RunningRecordPersistenceModel {
             shoe: shoe.shoe,
             legacyShoe: shoe.legacy,
             weather: weatherData,
-            userWeather: userWeatherData,
             difficultyLevel: difficultyLevel
         )
     }
@@ -226,10 +203,6 @@ public extension RunningRecordPersistenceModel {
             temperature: record.weather?.temperature,
             humidity: record.weather?.humidity,
             windSpeed: record.weather?.windSpeed,
-            skyConditionRaw: record.userWeather?.skyCondition?.rawValue,
-            windLevelRaw: record.userWeather?.windLevel?.rawValue,
-            feelsLikeRaw: record.userWeather?.feelsLike?.rawValue,
-            humidityLevelRaw: record.userWeather?.humidityLevel?.rawValue,
             difficultyLevelRaw: record.difficultyLevel?.rawValue,
             routeData: RouteDataMapper.encode(record.workout.route),
             activeEnergyBurned: record.workout.activeEnergyBurned,

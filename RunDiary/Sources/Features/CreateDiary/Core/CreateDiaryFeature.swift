@@ -15,7 +15,6 @@ import PersistencesService
 struct CreateDiaryFeature {
     enum Step: Int, CaseIterable, Equatable {
         case fitness
-        case weather
         case shoes
         case runningStyle
         case painAreas
@@ -56,11 +55,6 @@ struct CreateDiaryFeature {
 
         var weather: WeatherData?
 
-        var skyCondition: SkyCondition?
-        var windLevel: WindLevel?
-        var feelsLike: FeelsLikeLevel?
-        var humidityLevel: HumidityLevel?
-
         var isLoading: Bool = false
         var errorMassage: String?
 
@@ -82,14 +76,7 @@ struct CreateDiaryFeature {
             self.selectedShoe = existingRecord?.shoe
             self.selectedDifficultyLevel = existingRecord?.difficultyLevel ?? .medium
             self.memo = existingRecord?.memo ?? ""
-
-            if let weather = existingRecord?.weather {
-                self.weather = weather
-                self.skyCondition = weather.skyCondition
-                self.windLevel = weather.windLevel
-                self.feelsLike = weather.feelsLike
-                self.humidityLevel = weather.humidityLevel
-            }
+            self.weather = existingRecord?.weather
         }
     }
 
@@ -104,10 +91,6 @@ struct CreateDiaryFeature {
         case shoesLoadFailed
         case updateSelectedDifficultyLevel(DifficultyLevel?)
         case updateMemo(String)
-        case updateSkyCondition(SkyCondition)
-        case updateWindLevel(WindLevel)
-        case updateFeelsLike(FeelsLikeLevel)
-        case updateHumidityLevel(HumidityLevel)
         case weatherFetched(WeatherData?)
         case saveRecord
         case recordSaved
@@ -196,30 +179,8 @@ struct CreateDiaryFeature {
                 state.memo = text
                 return .none
 
-            case .updateSkyCondition(let value):
-                state.skyCondition = value
-                return .none
-
-            case .updateWindLevel(let value):
-                state.windLevel = value
-                return .none
-
-            case .updateFeelsLike(let value):
-                state.feelsLike = value
-                return .none
-
-            case .updateHumidityLevel(let value):
-                state.humidityLevel = value
-                return .none
-
             case .weatherFetched(let weather):
                 state.weather = weather
-                if let weather {
-                    state.skyCondition = weather.skyCondition
-                    state.windLevel = weather.windLevel
-                    state.feelsLike = weather.feelsLike
-                    state.humidityLevel = weather.humidityLevel
-                }
                 return .none
 
             case .saveRecord:
@@ -233,13 +194,7 @@ struct CreateDiaryFeature {
                 let memo = state.memo
                 let shoe = state.selectedShoe
                 let difficultyLevel = state.selectedDifficultyLevel
-                let weather = mergeWeather(
-                    base: state.weather,
-                    sky: state.skyCondition,
-                    wind: state.windLevel,
-                    feels: state.feelsLike,
-                    humid: state.humidityLevel
-                )
+                let weather = state.weather
                 let isNewRecord = state.existingRecord == nil
 
                 return .run { send in
@@ -323,25 +278,5 @@ struct CreateDiaryFeature {
                 await send(.shoesLoadFailed)
             }
         }
-    }
-
-    private func mergeWeather(
-        base: WeatherData?,
-        sky: SkyCondition?,
-        wind: WindLevel?,
-        feels: FeelsLikeLevel?,
-        humid: HumidityLevel?
-    ) -> WeatherData? {
-        guard let base else { return nil }
-
-        return WeatherData(
-            temperature: base.temperature,
-            humidity: base.humidity,
-            windSpeed: base.windSpeed,
-            skyCondition: sky ?? base.skyCondition,
-            windLevel: wind ?? base.windLevel,
-            feelsLike: feels ?? base.feelsLike,
-            humidityLevel: humid ?? base.humidityLevel
-        )
     }
 }

@@ -22,7 +22,6 @@ public struct Diary: Identifiable, Equatable, Sendable {
     public let shoe: Shoe?                              // 착용 신발. id는 항상 서버 카탈로그의 `Shoe.id`
     public let legacyShoe: String?                      // 카탈로그로 해석되지 않은 저장 원본 문자열
     public let weather: WeatherData?                    // 날씨 (WeatherKit 자동 조회 수치)
-    public let userWeather: UserWeather?                // 유저가 선택한 날씨
     public let difficultyLevel: DifficultyLevel?        // 달리기 난이도
 
     public init(
@@ -34,7 +33,6 @@ public struct Diary: Identifiable, Equatable, Sendable {
         shoe: Shoe? = nil,
         legacyShoe: String? = nil,
         weather: WeatherData? = nil,
-        userWeather: UserWeather? = nil,
         difficultyLevel: DifficultyLevel? = nil
     ) {
         self.id = id
@@ -45,7 +43,6 @@ public struct Diary: Identifiable, Equatable, Sendable {
         self.shoe = shoe
         self.legacyShoe = legacyShoe
         self.weather = weather
-        self.userWeather = userWeather
         self.difficultyLevel = difficultyLevel
     }
 }
