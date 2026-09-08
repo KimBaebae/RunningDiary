@@ -37,13 +37,13 @@ struct WorkoutTimeZoneResolverTests {
 
         // Then
         #expect(result == expectedTimeZone)
-        #expect(result.identifier == identifier)
+        #expect(result?.identifier == identifier)
     }
 
-    @Test("메타데이터가 없으면 기기 현재 타임존으로 대체한다")
-    func resolve_returnsCurrent_whenIdentifierIsNil() {
+    @Test("메타데이터가 없으면 nil을 반환한다")
+    func resolve_returnsNil_whenIdentifierIsNil() {
         // Given
-        let expectedTimeZone = TimeZone.current
+        let expectedTimeZone: TimeZone? = nil
 
         // When
         let result = WorkoutTimeZoneResolver.resolve(identifier: nil)
@@ -52,10 +52,10 @@ struct WorkoutTimeZoneResolverTests {
         #expect(result == expectedTimeZone)
     }
 
-    @Test("알 수 없는 identifier면 기기 현재 타임존으로 대체한다")
-    func resolve_returnsCurrent_whenIdentifierIsUnknown() {
+    @Test("알 수 없는 identifier면 nil을 반환한다")
+    func resolve_returnsNil_whenIdentifierIsUnknown() {
         // Given
-        let expectedTimeZone = TimeZone.current
+        let expectedTimeZone: TimeZone? = nil
 
         // When
         let result = WorkoutTimeZoneResolver.resolve(identifier: "Not/AZone")

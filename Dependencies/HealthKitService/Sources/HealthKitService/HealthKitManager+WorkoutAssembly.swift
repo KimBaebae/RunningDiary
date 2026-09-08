@@ -49,11 +49,12 @@ extension HealthKitManager {
             samples: samples,
             routeSamples: routeExtraction.samples
         )
-        let runningType = resolveRunningType(from: workout, distanceKm: distance)
+        let runningTypeResolution = resolveRunningType(from: workout, distanceKm: distance)
 
         return HealthKitWorkout(
             id: workout.uuid,
-            runningType: runningType,
+            runningType: runningTypeResolution.type,
+            runningTypeSource: runningTypeResolution.source,
             distance: distance,
             duration: workout.duration,
             averagePaceSecondsPerKm: averagePaceSecondsPerKm,
@@ -66,7 +67,9 @@ extension HealthKitManager {
             // cadence는 stepCount(cumulative) 기반이라 통계 평균이 없어 시계열 산술평균을 사용한다.
             averageCadence: MetricSample.average(of: samples.cadence).map(Int.init) ?? 0,
             activeEnergyBurned: activeEnergyBurned,
-            totalEnergyBurned: activeEnergyBurned + (basalEnergyBurned ?? 0),
+            // 기초대사를 얻지 못했는데 활동 칼로리와 같은 값을 총 칼로리 자리에 넣으면
+            // 서버가 "기초대사가 0"과 "얻지 못함"을 구분할 수 없다.
+            totalEnergyBurned: basalEnergyBurned.map { activeEnergyBurned + $0 },
             elevationAscended: resolveElevationAscended(from: workout, route: routeExtraction.route),
             averageVerticalOscillation: averageQuantity(
                 from: workout,
@@ -100,7 +103,10 @@ extension HealthKitManager {
                 fallbackSamples: samples.strideLength
             ) ?? 0,
             heartRateRecoveryOneMinute: heartRateRecoveryOneMinute,
-            route: WorkoutRouteResolver.resolve(runningType: runningType, points: routeExtraction.route),
+            route: WorkoutRouteResolver.resolve(
+                runningType: runningTypeResolution.type,
+                points: routeExtraction.route
+            ),
             startDate: workout.startDate,
             endDate: workout.endDate,
             timeZone: resolveTimeZone(from: workout),
@@ -143,7 +149,7 @@ extension HealthKitManager {
     }
 
     /// 기록 당시의 타임존을 판별한다. 판별 규칙은 `WorkoutTimeZoneResolver`가 갖는다.
-    func resolveTimeZone(from workout: HKWorkout) -> TimeZone {
+    func resolveTimeZone(from workout: HKWorkout) -> TimeZone? {
         WorkoutTimeZoneResolver.resolve(
             identifier: workout.metadata?[HKMetadataKeyTimeZone] as? String
         )
@@ -165,7 +171,10 @@ extension HealthKitManager {
     }
 
     /// 실내 여부 메타데이터를 우선 사용하고, 없으면 거리 측정 여부로 러닝 타입을 추정한다.
-    private func resolveRunningType(from workout: HKWorkout, distanceKm: Double) -> RunningType {
+    private func resolveRunningType(
+        from workout: HKWorkout,
+        distanceKm: Double
+    ) -> RunningTypeResolver.Resolution {
         let isIndoorWorkout = workout.metadata?[HKMetadataKeyIndoorWorkout] as? Bool
 
         return RunningTypeResolver.resolve(isIndoorWorkout: isIndoorWorkout, distanceKm: distanceKm)

@@ -9,14 +9,27 @@ import Models
 
 /// 워크아웃이 실외 달리기인지 트레드밀인지 판별하는 순수 계산 타입.
 public enum RunningTypeResolver {
+    /// 판별 결과와 그 근거를 함께 담는다.
+    public struct Resolution: Equatable, Sendable {
+        public let type: RunningType
+        public let source: RunningTypeSource
+
+        public init(type: RunningType, source: RunningTypeSource) {
+            self.type = type
+            self.source = source
+        }
+    }
+
     /// `isIndoorWorkout`(HealthKit `HKMetadataKeyIndoorWorkout`)을 1순위 근거로 사용한다.
     /// 메타데이터가 없는 워크아웃(서드파티 소스 등)은 거리 측정 여부로 추정하며,
     /// 거리가 0이면 GPS를 쓰지 않은 실내 러닝으로 간주한다.
-    public static func resolve(isIndoorWorkout: Bool?, distanceKm: Double) -> RunningType {
+    public static func resolve(isIndoorWorkout: Bool?, distanceKm: Double) -> Resolution {
         if let isIndoorWorkout {
-            return isIndoorWorkout ? .treadmill : .outdoor
+            let type: RunningType = isIndoorWorkout ? .treadmill : .outdoor
+            return Resolution(type: type, source: .healthKit)
         }
 
-        return distanceKm > 0 ? .outdoor : .treadmill
+        let type: RunningType = distanceKm > 0 ? .outdoor : .treadmill
+        return Resolution(type: type, source: .distanceInference)
     }
 }

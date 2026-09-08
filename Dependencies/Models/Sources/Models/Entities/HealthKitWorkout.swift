@@ -14,15 +14,16 @@ public struct HealthKitWorkout: Equatable, Identifiable, Sendable {
     public let yearMonthDay: YearMonthDay               // 달리기 날짜
     public let startTime: Date                          // 달리기 시작 시간
     public let endTime: Date                            // 달리기 종료 시간
-    public let timeZone: TimeZone                       // 기록 당시 타임존. 영속되지 않아 복원 시 .current
+    public let timeZone: TimeZone?                      // 기록 당시 타임존. 메타데이터로 판별 불가하면 nil
     public let duration: TimeInterval                   // 운동시간 (sec, 일시정지 제외)
     public let elapsedTime: TimeInterval                // 경과시간 (sec, 일시정지 포함)
     public let runningType: RunningType                 // 실외 달리기 / 트레드밀
+    public let runningTypeSource: RunningTypeSource      // runningType 판별 근거
 
     // MARK: 거리 · 에너지 · 고도
     public let distance: Double                         // 총 거리 (km)
     public let activeEnergyBurned: Double               // 활동 칼로리 (kcal)
-    public let totalEnergyBurned: Double                // 총 칼로리 (kcal, 활동 + 기초대사)
+    public let totalEnergyBurned: Double?               // 총 칼로리 (kcal, 활동 + 기초대사). 기초대사 미측정 시 nil
     public let elevationAscended: Double?               // 등반 고도 (m). 미측정 시 nil
 
     // MARK: 평균
@@ -83,7 +84,9 @@ public struct HealthKitWorkout: Equatable, Identifiable, Sendable {
     }
 
     public var formattedTotalEnergyBurned: String {
-        totalEnergyBurned == 0 ? "" : totalEnergyBurned.to1f
+        guard let totalEnergyBurned, totalEnergyBurned > 0 else { return "" }
+
+        return totalEnergyBurned.to1f
     }
 
     public var formattedElevationAscended: String {
@@ -107,6 +110,9 @@ public struct HealthKitWorkout: Equatable, Identifiable, Sendable {
     public init(
         id: UUID = UUID(),
         runningType: RunningType = .outdoor,
+        // 영속 복원 경로(toDomain)는 판별 메타데이터를 갖지 않아 거리 기반 추정과
+        // 동일한 신뢰도이므로 "추정"이 정확한 표현이다.
+        runningTypeSource: RunningTypeSource = .distanceInference,
         distance: Double,
         duration: TimeInterval,
         elapsedTime: TimeInterval? = nil,
@@ -114,7 +120,7 @@ public struct HealthKitWorkout: Equatable, Identifiable, Sendable {
         averageHeartRate: Int,
         averageCadence: Int,
         activeEnergyBurned: Double,
-        totalEnergyBurned: Double = 0,
+        totalEnergyBurned: Double? = nil,
         elevationAscended: Double? = nil,
         averageVerticalOscillation: Double,
         averageGroundContactTime: Double,
@@ -126,7 +132,7 @@ public struct HealthKitWorkout: Equatable, Identifiable, Sendable {
         route: [RoutePoint]? = nil,
         startDate: Date,
         endDate: Date,
-        timeZone: TimeZone = .current,
+        timeZone: TimeZone? = nil,
         splits: [WorkoutSplit] = [],
         laps: [WorkoutLap] = [],
         series: WorkoutSeries? = nil,
@@ -141,6 +147,7 @@ public struct HealthKitWorkout: Equatable, Identifiable, Sendable {
         self.duration = duration
         self.elapsedTime = elapsedTime ?? endDate.timeIntervalSince(startDate)
         self.runningType = runningType
+        self.runningTypeSource = runningTypeSource
         self.distance = distance
         self.activeEnergyBurned = activeEnergyBurned
         self.totalEnergyBurned = totalEnergyBurned
