@@ -23,9 +23,9 @@ struct ShoeCacheAllTests {
             await cache.reset()
 
             let shoes = [
-                makeShoe(id: "c", brand: "Asics",  nameKo: "파워런"),
+                makeShoe(id: "c", brand: "Asics", nameKo: "파워런"),
                 makeShoe(id: "a", brand: "Adidas", nameKo: "가제트"),
-                makeShoe(id: "b", brand: "Nike",   nameKo: "나이트런"),
+                makeShoe(id: "b", brand: "Nike", nameKo: "나이트런"),
             ]
             await cache.store(shoes)
 
@@ -42,8 +42,8 @@ struct ShoeCacheAllTests {
             await cache.reset()
 
             let shoes = [
-                makeShoe(id: "n1", brand: "Nike",   nameKo: "나이트런"),
-                makeShoe(id: "n2", brand: "Nike",   nameKo: "페가수스"),
+                makeShoe(id: "n1", brand: "Nike", nameKo: "나이트런"),
+                makeShoe(id: "n2", brand: "Nike", nameKo: "페가수스"),
                 makeShoe(id: "a1", brand: "Adidas", nameKo: "아디제로"),
             ]
             await cache.store(shoes)
@@ -63,7 +63,7 @@ struct ShoeCacheAllTests {
             await cache.reset()
 
             let shoes = [
-                makeShoe(id: "n1", brand: "Nike",   nameKo: "나이트런"),
+                makeShoe(id: "n1", brand: "Nike", nameKo: "나이트런"),
                 makeShoe(id: "a1", brand: "Adidas", nameKo: "아디제로"),
             ]
             await cache.store(shoes)

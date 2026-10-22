@@ -15,7 +15,6 @@ import PersistencesService
 struct CreateDiaryFeature {
     enum Step: Int, CaseIterable, Equatable {
         case fitness
-        case weather
         case shoes
         case runningStyle
         case painAreas
@@ -56,11 +55,6 @@ struct CreateDiaryFeature {
 
         var weather: WeatherData?
 
-        var skyCondition: SkyCondition?
-        var windLevel: WindLevel?
-        var feelsLike: FeelsLikeLevel?
-        var humidityLevel: HumidityLevel?
-
         var isLoading: Bool = false
         var errorMassage: String?
 
@@ -79,23 +73,15 @@ struct CreateDiaryFeature {
             self.healthKitWorkout = healthKitWorkout
             self.selectedPainAreas = Set(existingRecord?.painAreas ?? [])
             self.selectedRunningStyle = existingRecord?.runningStyle
-            self.selectedShoe = nil
+            self.selectedShoe = existingRecord?.shoe
             self.selectedDifficultyLevel = existingRecord?.difficultyLevel ?? .medium
             self.memo = existingRecord?.memo ?? ""
-
-            if let weather = existingRecord?.weather {
-                self.weather = weather
-                self.skyCondition = weather.skyCondition
-                self.windLevel = weather.windLevel
-                self.feelsLike = weather.feelsLike
-                self.humidityLevel = weather.humidityLevel
-            }
+            self.weather = existingRecord?.weather
         }
     }
 
     enum Action {
         case onAppear
-        case workoutDetailFetched(HealthKitWorkout?)
         case nextStepTapped
         case previousStepTapped
         case updateSelectedPainAreas(Set<PainArea>)
@@ -105,10 +91,6 @@ struct CreateDiaryFeature {
         case shoesLoadFailed
         case updateSelectedDifficultyLevel(DifficultyLevel?)
         case updateMemo(String)
-        case updateSkyCondition(SkyCondition)
-        case updateWindLevel(WindLevel)
-        case updateFeelsLike(FeelsLikeLevel)
-        case updateHumidityLevel(HumidityLevel)
         case weatherFetched(WeatherData?)
         case saveRecord
         case recordSaved
@@ -116,7 +98,6 @@ struct CreateDiaryFeature {
     }
 
     @Dependency(\.runningRecordClient) var runningRecordClient
-    @Dependency(\.healthKitClient) var healthKitClient
     @Dependency(\.weatherClient) var weatherClient
     @Dependency(\.shoeClient) var shoeClient
     @Dependency(\.dismiss) var dismiss
@@ -127,40 +108,19 @@ struct CreateDiaryFeature {
             case .onAppear:
                 let shoesEffect = loadShoesEffect(state: &state)
 
-                // 기존 기록 수정은 이미 전체 데이터를 보유하므로 상세 조회가 불필요하다.
+                // 기존 기록 수정은 이미 전체 데이터를 보유하므로 날씨 재조회가 불필요하다.
                 if state.existingRecord != nil {
                     return shoesEffect
                 }
 
-                // 신규 기록은 목록에서 경량 데이터만 넘어오므로, 저장에 필요한 전체 상세를 여기서 추출한다.
+                // 신규 기록은 목록에서 전체 데이터를 그대로 받으므로, 경로에서 위치를 추출해 날씨만 조회한다.
                 let workout = state.healthKitWorkout
-                let detailEffect: Effect<Action> = .run { send in
-                    do {
-                        let detailed = try await healthKitClient.fetchDetailedRunningData(
-                            workout.startTime,
-                            workout.endTime
-                        )
-                        await send(.workoutDetailFetched(detailed))
-                    } catch {
-                        AppLogger.createDiary.error("상세 운동 데이터 조회 실패: \(error.localizedDescription)")
-                        await send(.workoutDetailFetched(nil))
-                    }
-                }
+                let location = extractLocationFromRoute(workout.route)
 
-                return .merge(shoesEffect, detailEffect)
+                guard let location else { return shoesEffect }
 
-            case let .workoutDetailFetched(detailed):
-                guard let detailed else { return .none }
-
-                state.healthKitWorkout = detailed
-
-                let location = extractLocationFromRoute(detailed.routeData)
-
-                guard let location else { return .none }
-
-                let middleTime = workoutMiddleTime(detailed)
-
-                return .run { send in
+                let middleTime = workoutMiddleTime(workout)
+                let weatherEffect: Effect<Action> = .run { send in
                     do {
                         let weather = try await weatherClient.fetchWeather(middleTime, location)
                         await send(.weatherFetched(weather))
@@ -169,6 +129,8 @@ struct CreateDiaryFeature {
                         await send(.weatherFetched(nil))
                     }
                 }
+
+                return .merge(shoesEffect, weatherEffect)
 
             case .nextStepTapped:
                 if let next = state.currentStep.next {
@@ -197,9 +159,12 @@ struct CreateDiaryFeature {
             case .shoesLoaded(let shoes):
                 state.shoes = shoes
                 state.isShoesLoading = false
-                if state.selectedShoe == nil, let id = state.existingRecord?.shoes {
-                    state.selectedShoe = shoes.first { $0.id == id }
-                }
+                // 저장된 신발은 마스터 목록 없이 복원되면 legacyShoe로 떨어진다.
+                // 목록이 도착하면 정식 항목으로 교체하고, 목록에 없으면 선택을 비운다.
+                state.selectedShoe = state.selectedShoe
+                    .flatMap { selected in shoes.first { $0.id == selected.id } }
+                    ?? state.existingRecord?.legacyShoe
+                        .flatMap { ShoeIdMigrator.resolve(legacyShoe: $0, in: shoes) }
                 return .none
 
             case .shoesLoadFailed:
@@ -214,30 +179,8 @@ struct CreateDiaryFeature {
                 state.memo = text
                 return .none
 
-            case .updateSkyCondition(let value):
-                state.skyCondition = value
-                return .none
-
-            case .updateWindLevel(let value):
-                state.windLevel = value
-                return .none
-
-            case .updateFeelsLike(let value):
-                state.feelsLike = value
-                return .none
-
-            case .updateHumidityLevel(let value):
-                state.humidityLevel = value
-                return .none
-
             case .weatherFetched(let weather):
                 state.weather = weather
-                if let weather {
-                    state.skyCondition = weather.skyCondition
-                    state.windLevel = weather.windLevel
-                    state.feelsLike = weather.feelsLike
-                    state.humidityLevel = weather.humidityLevel
-                }
                 return .none
 
             case .saveRecord:
@@ -249,15 +192,9 @@ struct CreateDiaryFeature {
                 let painAreas = state.selectedPainAreas
                 let runningStyle = state.selectedRunningStyle
                 let memo = state.memo
-                let shoeId = state.selectedShoe?.id ?? ""
+                let shoe = state.selectedShoe
                 let difficultyLevel = state.selectedDifficultyLevel
-                let weather = mergeWeather(
-                    base: state.weather,
-                    sky: state.skyCondition,
-                    wind: state.windLevel,
-                    feels: state.feelsLike,
-                    humid: state.humidityLevel
-                )
+                let weather = state.weather
                 let isNewRecord = state.existingRecord == nil
 
                 return .run { send in
@@ -268,7 +205,7 @@ struct CreateDiaryFeature {
                             painAreas: Array(painAreas),
                             runningStyle: runningStyle,
                             memo: memo.isEmpty ? nil : memo,
-                            shoes: shoeId,
+                            shoe: shoe,
                             weather: weather,
                             difficultyLevel: difficultyLevel
                         )
@@ -303,15 +240,10 @@ struct CreateDiaryFeature {
         }
     }
 
-    private func extractLocationFromRoute(_ routeData: Data?) -> CLLocationCoordinate2D? {
-        guard let routeData = routeData,
-              let coordinates = try? JSONDecoder().decode([Location].self, from: routeData),
-              !coordinates.isEmpty else {
-            return nil
-        }
+    /// 경로의 시작·종료 지점 중간 좌표를 날씨 조회 위치로 사용한다.
+    private func extractLocationFromRoute(_ route: [RoutePoint]?) -> CLLocationCoordinate2D? {
+        guard let first = route?.first, let last = route?.last else { return nil }
 
-        let first = coordinates.first!
-        let last = coordinates.last!
         let midLatitude = (first.latitude + last.latitude) / 2.0
         let midLongitude = (first.longitude + last.longitude) / 2.0
 
@@ -346,25 +278,5 @@ struct CreateDiaryFeature {
                 await send(.shoesLoadFailed)
             }
         }
-    }
-
-    private func mergeWeather(
-        base: WeatherData?,
-        sky: SkyCondition?,
-        wind: WindLevel?,
-        feels: FeelsLikeLevel?,
-        humid: HumidityLevel?
-    ) -> WeatherData? {
-        guard let base else { return nil }
-
-        return WeatherData(
-            temperature: base.temperature,
-            humidity: base.humidity,
-            windSpeed: base.windSpeed,
-            skyCondition: sky ?? base.skyCondition,
-            windLevel: wind ?? base.windLevel,
-            feelsLike: feels ?? base.feelsLike,
-            humidityLevel: humid ?? base.humidityLevel
-        )
     }
 }

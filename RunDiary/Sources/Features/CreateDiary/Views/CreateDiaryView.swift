@@ -60,9 +60,6 @@ private struct StepContent: View {
             case .fitness:
                 Step1FitnessView(workout: store.healthKitWorkout)
 
-            case .weather:
-                Step2WeatherView(store: store)
-
             case .shoes:
                 Step3ShoesView(store: store)
 
@@ -91,26 +88,7 @@ private struct StepContent: View {
     NavigationStack {
         CreateDiaryView(
             store: Store(
-                initialState: CreateDiaryFeature.State(
-                    healthKitWorkout: HealthKitWorkout(
-                        distance: 5.2,
-                        duration: 3665,
-                        averagePace: "5'30\"",
-                        averageHeartRate: 155,
-                        averageCadence: 180,
-                        activeEnergyBurned: 450.0,
-                        runningVerticalOscillation: 8.2,
-                        runningGroundContactTime: 240.0,
-                        walkingStepLength: 1.1,
-                        restingHeartRate: 60.0,
-                        runningPower: 300.0,
-                        runningStrideLength: 1.1,
-                        heartRateRecoveryOneMinute: 20.0,
-                        routeData: nil,
-                        startDate: .now,
-                        endDate: .now
-                    )
-                )
+                initialState: CreateDiaryFeature.State(healthKitWorkout: .preview)
             ) {
                 CreateDiaryFeature()
             }

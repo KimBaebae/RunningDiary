@@ -37,11 +37,14 @@ public final class WeatherKitManager: WeatherManagerProtocol {
         }
 
         return WeatherData(
-            temperature: weather.temperature.value,
+            // WeatherKit은 섭씨·m/s(SI)로 값을 준다. 계약 단위와 같지만
+            // Measurement.value는 담긴 단위를 그대로 반환하므로 변환을 명시해 고정한다.
+            temperature: weather.temperature.converted(to: .celsius).value,
             humidity: Int(weather.humidity * 100),
-            windSpeed: weather.wind.speed.value,
+            windSpeed: weather.wind.speed.converted(to: .metersPerSecond).value,
+            apparentTemperature: weather.apparentTemperature.converted(to: .celsius).value,
             cloudCover: weather.cloudCover,
-            apparentTemperature: weather.apparentTemperature.value
+            precipitationAmount: weather.precipitationAmount.converted(to: .millimeters).value
         )
     }
 

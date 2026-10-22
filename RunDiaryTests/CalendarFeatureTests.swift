@@ -40,14 +40,14 @@ struct CalendarFeatureTests {
         let startDate = YearMonthDay(year: 2025, month: 6, day: 1)
         let endDate = YearMonthDay(year: 2025, month: 6, day: 30)
 
-        let mockRecord = makeRunningRecord(yearMonthDay: startDate)
+        let mockRecord = makeDiary(yearMonthDay: startDate)
 
         let expectedDailyRecords: [YearMonthDay: DailyRecord] = [
             startDate: DailyRecord(
                 yearMonthDay: startDate,
                 healthKitWorkouts: [],
                 savedRecords: [mockRecord]
-            )
+            ),
         ]
 
         let store = makeTestStore(
@@ -178,12 +178,12 @@ struct CalendarFeatureTests {
         // Given
         let june1 = YearMonthDay(year: 2025, month: 6, day: 1)
         let june15 = YearMonthDay(year: 2025, month: 6, day: 15)
-        let record1 = makeRunningRecord(yearMonthDay: june1, distance: 5.0)
-        let record2 = makeRunningRecord(yearMonthDay: june15, distance: 7.0)
+        let record1 = makeDiary(yearMonthDay: june1, distance: 5.0)
+        let record2 = makeDiary(yearMonthDay: june15, distance: 7.0)
 
         let mockRecords: [YearMonthDay: DailyRecord] = [
             june1: DailyRecord(yearMonthDay: june1, healthKitWorkouts: [], savedRecords: [record1]),
-            june15: DailyRecord(yearMonthDay: june15, healthKitWorkouts: [], savedRecords: [record2])
+            june15: DailyRecord(yearMonthDay: june15, healthKitWorkouts: [], savedRecords: [record2]),
         ]
         let store = makeTestStore(selectedDate: june1, mockDailyRecords: mockRecords)
 
@@ -276,7 +276,7 @@ struct CalendarFeatureTests {
         ) {
             CalendarFeature()
         } withDependencies: {
-            $0.runningRecordClient.fetchData = { from, to in
+            $0.runningRecordClient.fetchData = { _, _ in
                 if shouldFail {
                     struct TestError: Error {}
                     throw TestError()
@@ -284,36 +284,5 @@ struct CalendarFeatureTests {
                 return mockDailyRecords
             }
         }
-    }
-
-    private func makeRunningRecord(
-        yearMonthDay: YearMonthDay,
-        distance: Double = 5.0,
-        startTime: Date? = nil
-    ) -> Diary {
-        let start = startTime ?? yearMonthDay.toDate()
-        let workout = HealthKitWorkout(
-            distance: distance,
-            duration: 1800,
-            averagePace: "6'00\"",
-            averageHeartRate: 150,
-            averageCadence: 170,
-            activeEnergyBurned: 0,
-            runningVerticalOscillation: 0,
-            runningGroundContactTime: 0,
-            walkingStepLength: 0,
-            restingHeartRate: 0,
-            runningPower: 0,
-            runningStrideLength: 0,
-            heartRateRecoveryOneMinute: 0,
-            routeData: nil,
-            startDate: start,
-            endDate: start.addingTimeInterval(1800)
-        )
-        return Diary(
-            workout: workout,
-            runningStyle: .midfoot,
-            memo: nil
-        )
     }
 }

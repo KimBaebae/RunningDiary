@@ -174,27 +174,22 @@ struct UserWeatherMigrationTests {
         #expect(saved.first?.humidityLevelRaw == expectedHumidityLevel)
     }
 
-    @Test("toDomain/fromDomain 변환 시 유저 선택 날씨가 보존된다")
-    func userWeather_roundTripsThroughDomainConversion() throws {
-        // Given
-        let expectedUserWeather = UserWeather(
-            skyCondition: .cloudy,
-            windLevel: .strong,
-            feelsLike: .cold,
-            humidityLevel: .dry
-        )
+    @Test("컬럼은 스키마에 남아 있지만 fromDomain은 도메인에 대응 필드가 없어 항상 nil로 채운다")
+    func fromDomain_leavesLegacyWeatherColumnsNil() throws {
+        // Given — Diary에는 더 이상 유저 선택 날씨를 표현할 방법이 없다
         let diary = Diary(
             workout: makeWorkout(),
-            runningStyle: .midfoot,
-            userWeather: expectedUserWeather
+            runningStyle: .midfoot
         )
 
         // When
         let model = RunningRecordPersistenceModel.fromDomain(diary)
-        let restored = model.toDomain()
 
-        // Then
-        #expect(restored.userWeather == expectedUserWeather)
+        // Then — 컬럼 자체는 살아 있으나(테스트 2에서 저장/조회 가능함을 확인) 항상 nil로 채워진다
+        #expect(model.skyConditionRaw == nil)
+        #expect(model.windLevelRaw == nil)
+        #expect(model.feelsLikeRaw == nil)
+        #expect(model.humidityLevelRaw == nil)
     }
 }
 
@@ -205,18 +200,17 @@ private extension UserWeatherMigrationTests {
         HealthKitWorkout(
             distance: 5.0,
             duration: 1800,
-            averagePace: "6'00\"",
+            averagePaceSecondsPerKm: 360,
             averageHeartRate: 150,
             averageCadence: 170,
             activeEnergyBurned: 0,
-            runningVerticalOscillation: 0,
-            runningGroundContactTime: 0,
-            walkingStepLength: 0,
+            averageVerticalOscillation: 0,
+            averageGroundContactTime: 0,
+            averageStepLength: 0,
             restingHeartRate: 0,
-            runningPower: 0,
-            runningStrideLength: 0,
+            averagePower: 0,
+            averageStrideLength: 0,
             heartRateRecoveryOneMinute: 0,
-            routeData: nil,
             startDate: .now,
             endDate: .now
         )

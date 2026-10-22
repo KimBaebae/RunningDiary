@@ -46,8 +46,22 @@
 - **TCA**: `.claude/rules/tca-convention.md` (auto-loaded)
 - **Preview**: `.claude/rules/preview-convention.md` (auto-loaded)
 - **Git workflow**: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- **Decisions**: [docs/decisions/README.md](./docs/decisions/README.md)
+
+## Decision Records
+되돌리기 어려운 판단은 `docs/decisions/NNNN-슬러그.md`에 남긴다. **한 파일에 두 개의 반**이다.
+
+- **Ⅰ. 착수 전** — 구현을 맡기기 전에 쓴다. 결정마다 *고르지 않은 쪽과 그 이유*를 함께 적는다. 에이전트가 구현할 근거이자 리뷰의 기준선이다.
+- **Ⅱ. 완료 후** — 구현이 끝나면 쓴다. Ⅰ의 "예상 위험"과 하나씩 대조한다.
+
+**Ⅰ은 완료 후에 고치지 않는다.** 틀린 예측은 지우지 말고 Ⅱ에 "여기서 틀렸다"로 남긴다. 사후에 정답으로 덮으면 기록이 항상 옳아 보이고 아무것도 배울 수 없다.
+
+**코드·테스트·git으로 복원 가능한 것은 쓰지 않는다** — 진행 상태표, 파일 목록, 시그니처, TC 목록. 경로와 커맨드로만 참조한다. 리팩터링·버그 수정·컨벤션대로의 구현은 기록하지 않는다(커밋 메시지로 충분하다).
 
 ## Preview Rules
 - 모든 View 파일은 `#Preview` 블록을 반드시 포함한다.
 - `#Preview` 블록은 파일의 **가장 마지막**에 위치하고 `// MARK: - Preview` 로 구분한다.
 - 공용 더미 데이터는 `Core/Extensions/*+Preview.swift` 패턴으로 작성한다 (예: `HealthKitWorkout.preview`).
+
+## Handoff
+인수인계 프로토콜은 @AGENTS.md 의 "Handoff Protocol" 을 따른다. 세션 시작 시 `.handoff/CURRENT.md` 가 있으면 먼저 읽고 이어받는다.

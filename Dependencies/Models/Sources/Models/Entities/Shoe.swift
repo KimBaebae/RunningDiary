@@ -7,6 +7,10 @@
 
 import Foundation
 
+/// 서버 신발 카탈로그의 한 항목.
+///
+/// 이 타입은 카탈로그에서 조회한 신발만 표현한다.
+/// 카탈로그로 해석되지 않은 로컬 저장 문자열은 `Shoe`로 위장하지 않고 `Diary.legacyShoe`가 보관한다.
 public struct Shoe: Identifiable, Equatable, Hashable, Sendable, Decodable {
     public let id: String
     public let brandName: String

@@ -29,7 +29,7 @@ struct RecordListView: View {
     var body: some View {
         LazyVStack(spacing: 12) {
             ForEach(diaries) { diary in
-                RunningRecordCard(record: diary, onEdit: { store.send(.editRecord(diary)) })
+                RunningRecordCard(record: diary) { store.send(.editRecord(diary)) }
             }
 
             if !diaries.isEmpty, let trademark = store.weatherTrademark {
@@ -44,7 +44,7 @@ struct RecordListView: View {
             }
 
             ForEach(workouts) { workout in
-                HealthKitWorkoutCard(record: workout, onCreate: { store.send(.createRecord(workout)) })
+                HealthKitWorkoutCard(record: workout) { store.send(.createRecord(workout)) }
             }
         }
         .padding(.vertical, 20)
@@ -56,6 +56,6 @@ struct RecordListView: View {
 
 #Preview(traits: .sampleData) {
     ScrollView(.vertical) {
-        RunningRecordCard(record: RunningRecordPersistenceModel.preview.toDomain(), onEdit: {})
+        RunningRecordCard(record: RunningRecordPersistenceModel.preview.toDomain()) {}
     }
 }

@@ -82,13 +82,12 @@ struct HealthKitClientTests {
         #expect(capturedDates?.1 == endDate)
     }
 
-    @Test("weekly: fetchWeeklyRunningData만 호출하고 fetchDetailedRunningData는 호출하지 않는다")
+    @Test("weekly: fetchWeeklyRunningData에 위임한다")
     // TC: hkclient-weekly-callsCorrectMethod
-    func fetchWeekly_callsOnlyWeeklyMethod() async throws {
+    func fetchWeekly_callsWeeklyMethod() async throws {
         // Given
         let manager = StubHealthKitManager(
-            weeklyResult: .success([makeHealthKitWorkout(distance: 5.0)]),
-            detailedResult: .success(makeHealthKitWorkout(distance: 10.0))
+            weeklyResult: .success([makeHealthKitWorkout(distance: 5.0)])
         )
         let client = makeSUT(manager: manager)
 
@@ -97,87 +96,6 @@ struct HealthKitClientTests {
 
         // Then
         #expect(manager.didCallWeekly == true)
-        #expect(manager.didCallDetailed == false)
-    }
-
-    // MARK: - fetchDetailedRunningData Tests
-
-    @Test("detailed: 매니저가 반환한 데이터를 그대로 반환한다")
-    // TC: hkclient-detailed-returnsData
-    func fetchDetailed_returnsManagerData() async throws {
-        // Given
-        let expectedWorkout = makeHealthKitWorkout(distance: 7.5)
-        let manager = StubHealthKitManager(detailedResult: .success(expectedWorkout))
-        let client = makeSUT(manager: manager)
-
-        // When
-        let result = try await client.fetchDetailedRunningData(Date.now, Date.now)
-
-        // Then
-        #expect(result == expectedWorkout)
-    }
-
-    @Test("detailed: 매니저가 nil을 반환하면 nil을 반환한다")
-    // TC: hkclient-detailed-returnsNil
-    func fetchDetailed_returnsNil_whenManagerReturnsNil() async throws {
-        // Given
-        let manager = StubHealthKitManager(detailedResult: .success(nil))
-        let client = makeSUT(manager: manager)
-
-        // When
-        let result = try await client.fetchDetailedRunningData(Date.now, Date.now)
-
-        // Then
-        #expect(result == nil)
-    }
-
-    @Test("detailed: 매니저가 에러를 던지면 동일한 에러를 재전파한다")
-    // TC: hkclient-detailed-throws
-    func fetchDetailed_throwsError_whenManagerThrows() async {
-        // Given
-        let manager = StubHealthKitManager(detailedResult: .failure(HealthKitError.notAvailable))
-        let client = makeSUT(manager: manager)
-
-        // When / Then
-        await #expect(throws: HealthKitError.notAvailable) {
-            try await client.fetchDetailedRunningData(Date.now, Date.now)
-        }
-    }
-
-    @Test("detailed: 전달받은 날짜를 그대로 매니저에 전달한다")
-    // TC: hkclient-detailed-forwardsDates
-    func fetchDetailed_forwardsDates_toManager() async throws {
-        // Given
-        let startDate = Calendar.current.date(byAdding: .day, value: -7, to: Date.now)!
-        let endDate = Date.now
-        let manager = StubHealthKitManager()
-        let client = makeSUT(manager: manager)
-
-        // When
-        _ = try await client.fetchDetailedRunningData(startDate, endDate)
-
-        // Then
-        let capturedDates = manager.capturedDetailedDates
-        #expect(capturedDates?.0 == startDate)
-        #expect(capturedDates?.1 == endDate)
-    }
-
-    @Test("detailed: fetchDetailedRunningData만 호출하고 fetchWeeklyRunningData는 호출하지 않는다")
-    // TC: hkclient-detailed-callsCorrectMethod
-    func fetchDetailed_callsOnlyDetailedMethod() async throws {
-        // Given
-        let manager = StubHealthKitManager(
-            weeklyResult: .success([makeHealthKitWorkout(distance: 5.0)]),
-            detailedResult: .success(makeHealthKitWorkout(distance: 10.0))
-        )
-        let client = makeSUT(manager: manager)
-
-        // When
-        _ = try await client.fetchDetailedRunningData(Date.now, Date.now)
-
-        // Then
-        #expect(manager.didCallDetailed == true)
-        #expect(manager.didCallWeekly == false)
     }
 }
 
@@ -199,18 +117,17 @@ private extension HealthKitClientTests {
         HealthKitWorkout(
             distance: distance,
             duration: 1800,
-            averagePace: "6'00\"",
+            averagePaceSecondsPerKm: 360,
             averageHeartRate: 150,
             averageCadence: 178,
             activeEnergyBurned: 400,
-            runningVerticalOscillation: 8.0,
-            runningGroundContactTime: 240.0,
-            walkingStepLength: 1.0,
+            averageVerticalOscillation: 8.0,
+            averageGroundContactTime: 240.0,
+            averageStepLength: 1.0,
             restingHeartRate: 58.0,
-            runningPower: 290.0,
-            runningStrideLength: 1.0,
+            averagePower: 290.0,
+            averageStrideLength: 1.0,
             heartRateRecoveryOneMinute: 21.0,
-            routeData: nil,
             startDate: startDate,
             endDate: startDate.addingTimeInterval(1800)
         )
@@ -219,23 +136,17 @@ private extension HealthKitClientTests {
 
 // MARK: - Stubs
 
-/// `fetchRunningDataBetweenDates`/`fetchDetailedRunningData`가 실제로 주입된 매니저에
-/// 위임하는지 검증하기 위한 테스트 전용 fake.
+/// `fetchRunningDataBetweenDates`가 실제로 주입된 매니저에 위임하는지 검증하기 위한 테스트 전용 fake.
 private final class StubHealthKitManager: HealthKitManagerProtocol, @unchecked Sendable {
     private let weeklyResult: Result<[HealthKitWorkout], Error>
-    private let detailedResult: Result<HealthKitWorkout?, Error>
 
     var capturedWeeklyDates: (Date, Date)?
-    var capturedDetailedDates: (Date, Date)?
     var didCallWeekly = false
-    var didCallDetailed = false
 
     init(
-        weeklyResult: Result<[HealthKitWorkout], Error> = .success([]),
-        detailedResult: Result<HealthKitWorkout?, Error> = .success(nil)
+        weeklyResult: Result<[HealthKitWorkout], Error> = .success([])
     ) {
         self.weeklyResult = weeklyResult
-        self.detailedResult = detailedResult
     }
 
     func ensureAuthorizationIfNeeded() async throws {
@@ -251,11 +162,5 @@ private final class StubHealthKitManager: HealthKitManagerProtocol, @unchecked S
         didCallWeekly = true
         capturedWeeklyDates = (startDate, endDate)
         return try weeklyResult.get()
-    }
-
-    func fetchDetailedRunningData(from startDate: Date, to endDate: Date) async throws -> HealthKitWorkout? {
-        didCallDetailed = true
-        capturedDetailedDates = (startDate, endDate)
-        return try detailedResult.get()
     }
 }

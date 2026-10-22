@@ -24,7 +24,7 @@ extension RunningRecordClient: DependencyKey {
             @Dependency(\.persistencesClient) var persistencesClient
 
             // 1. Fetch (캐싱은 Repository가 담당, 권한은 Manager가 내부 처리)
-            //    목록 노출용 경량 데이터만 조회한다. 상세 지표는 일기 저장 시점에 추출된다.
+            //    조회 시점에 전체 상세 데이터를 싣는다. (경량/상세 구분 없음)
             let healthKitWorkouts = try await healthKitClient.fetchRunningDataBetweenDates(
                 from.toDate(),
                 to.toDate()
@@ -50,25 +50,7 @@ extension RunningRecordClient: DependencyKey {
             @Dependency(\.persistencesClient) var persistencesClient
             try await persistencesClient.updateRecord(
                 recordId: record.id,
-                date: record.workout.yearMonthDay,
-                distance: record.workout.distance,
-                duration: record.workout.duration,
-                averagePace: record.workout.averagePace,
-                averageHeartRate: record.workout.averageHeartRate,
-                averageCadence: record.workout.averageCadence,
-                painAreas: record.painAreas,
-                runningStyle: record.runningStyle,
-                memo: record.memo,
-                shoes: record.shoes,
-                weather: record.weather,
-                difficultyLevel: record.difficultyLevel,
-                routeData: record.workout.routeData,
-                activeEnergyBurned: record.workout.activeEnergyBurned,
-                runningVerticalOscillation: record.workout.runningVerticalOscillation,
-                runningGroundContactTime: record.workout.runningGroundContactTime,
-                walkingStepLength: record.workout.walkingStepLength,
-                startTime: record.workout.startTime,
-                endTime: record.workout.endTime
+                patch: .fullUpdate(from: record)
             )
         }
     )

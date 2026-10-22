@@ -3,12 +3,14 @@
 # --- Paths ---
 included:
   - RunDiary/Sources
+  - RunDiaryTests
   - Dependencies
 
+# 자동 생성 파일만 제외한다.
+# 테스트 코드는 pre-commit 훅이 파일 경로를 직접 넘겨 어차피 검사되므로,
+# excluded에 넣어두면 "설정상 제외 / 실제로는 검사"가 어긋나 부채가 쌓인다.
 excluded:
   - RunDiary/Sources/Generated
-  - Dependencies/*/Tests
-  - RunDiaryTests
   - "**/.build"
 
 # --- Rule Adjustments ---
