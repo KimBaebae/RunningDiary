@@ -15,6 +15,7 @@
 		339637502EA4F89B00640DBF /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 33TCA0022EA1600000000002 /* ComposableArchitecture */; };
 		339DA1592EB684610013B0E2 /* HealthKitService in Frameworks */ = {isa = PBXBuildFile; productRef = 339DA1582EB684610013B0E2 /* HealthKitService */; };
 		33A0F11E2F00000000000002 /* AuthService in Frameworks */ = {isa = PBXBuildFile; productRef = 33A0F11E2F00000000000003 /* AuthService */; };
+		33A0F11E2F00000000000102 /* LegacyMigration in Frameworks */ = {isa = PBXBuildFile; productRef = 33A0F11E2F00000000000103 /* LegacyMigration */; };
 		33FF0E1D2EBA05AA00BCD17A /* DependencyProxy in Frameworks */ = {isa = PBXBuildFile; productRef = 33FF0E1C2EBA05AA00BCD17A /* DependencyProxy */; };
 		33SEC0RE2F00000000000002 /* SecureStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 33SEC0RE2F00000000000003 /* SecureStorage */; };
 		33SNAP001F00000000000001 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 33SNAP002F00000000000002 /* SnapshotTesting */; };
@@ -39,6 +40,7 @@
 		3394D2472EAC74A300A46A16 /* CommonFoundation */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = CommonFoundation; path = Dependencies/CommonFoundation; sourceTree = "<group>"; };
 		339DA1572EB684340013B0E2 /* HealthKitService */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = HealthKitService; path = Dependencies/HealthKitService; sourceTree = "<group>"; };
 		33A0F11E2F00000000000001 /* AuthService */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = AuthService; path = Dependencies/AuthService; sourceTree = "<group>"; };
+		33A0F11E2F00000000000101 /* LegacyMigration */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = LegacyMigration; path = Dependencies/LegacyMigration; sourceTree = "<group>"; };
 		33B0581A2EB9FF3B00C68BFF /* DependencyProxy */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DependencyProxy; path = Dependencies/DependencyProxy; sourceTree = "<group>"; };
 		33C0F19E2F00000000000C01 /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Secrets.xcconfig; path = Config/Secrets.xcconfig; sourceTree = "<group>"; };
 		33SEC0RE2F00000000000001 /* SecureStorage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SecureStorage; path = Dependencies/SecureStorage; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				33A0F11E2F00000000000002 /* AuthService in Frameworks */,
+				33A0F11E2F00000000000102 /* LegacyMigration in Frameworks */,
 				33SEC0RE2F00000000000002 /* SecureStorage in Frameworks */,
 				331CB0772EBBCAE300BE3F63 /* WeatherKitService in Frameworks */,
 				33FF0E1D2EBA05AA00BCD17A /* DependencyProxy in Frameworks */,
@@ -112,6 +115,7 @@
 				33C225802F4AE97D005989BC /* CoreNetwork */,
 				335FDEDA2F18BA4A006B1906 /* PersistencesService */,
 				33A0F11E2F00000000000001 /* AuthService */,
+				33A0F11E2F00000000000101 /* LegacyMigration */,
 				33SEC0RE2F00000000000001 /* SecureStorage */,
 				331CB0752EBBC93600BE3F63 /* WeatherKitService */,
 				33B0581A2EB9FF3B00C68BFF /* DependencyProxy */,
@@ -205,6 +209,7 @@
 				331CB0762EBBCAE300BE3F63 /* WeatherKitService */,
 				335FDEDB2F18BAFF006B1906 /* PersistencesService */,
 				33A0F11E2F00000000000003 /* AuthService */,
+				33A0F11E2F00000000000103 /* LegacyMigration */,
 				33SEC0RE2F00000000000003 /* SecureStorage */,
 				33883D742F77058100841BF8 /* CoreNetwork */,
 			);
@@ -792,6 +797,10 @@
 		33A0F11E2F00000000000003 /* AuthService */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AuthService;
+		};
+		33A0F11E2F00000000000103 /* LegacyMigration */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LegacyMigration;
 		};
 		33FF0E1C2EBA05AA00BCD17A /* DependencyProxy */ = {
 			isa = XCSwiftPackageProductDependency;
