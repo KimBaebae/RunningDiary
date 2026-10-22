@@ -36,6 +36,9 @@ jobs:
         with:
           xcode-version: 'latest-stable'
 
+      - name: Test legacy migration module
+        run: swift test --package-path Dependencies/LegacyMigration
+
       - name: Checkout Secrets
         uses: actions/checkout@v4
         with:
