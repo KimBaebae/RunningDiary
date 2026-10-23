@@ -24,6 +24,11 @@ struct RunningRecordCard: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            HStack {
+                Spacer()
+                Button(L10n.recordEdit.value, action: onEdit)
+                    .accessibilityIdentifier("record.edit")
+            }
             TopSection(record: record)
             ExpandedContentView(record: record)
         }
