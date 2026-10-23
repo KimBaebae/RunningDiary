@@ -36,6 +36,7 @@ struct LoginView: View {
             AppleSignInButton {
                 store.send(.appleSignInTapped)
             }
+            .accessibilityIdentifier("login.apple")
             .frame(height: 50)
             .frame(maxWidth: .infinity)
             .disabled(store.isLoading)

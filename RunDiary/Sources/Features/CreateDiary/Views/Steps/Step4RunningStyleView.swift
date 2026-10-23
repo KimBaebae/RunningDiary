@@ -63,6 +63,7 @@ private struct RunningStyleCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("diary.style.\(style.rawValue)")
     }
 
     private var description: String {

@@ -65,3 +65,5 @@
 
 ## Handoff
 인수인계 프로토콜은 @AGENTS.md 의 "Handoff Protocol" 을 따른다. 세션 시작 시 `.handoff/CURRENT.md` 가 있으면 먼저 읽고 이어받는다.
+## PR visual evidence
+Follow `CONTRIBUTING.md` → `PR visual evidence`: UI or simulator-observable behavior changes require an attached playable recording before marking the PR ready. Codex follows the same rule.
