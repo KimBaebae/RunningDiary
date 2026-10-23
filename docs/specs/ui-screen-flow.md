@@ -38,7 +38,7 @@ python3 Scripts/export-ui-flow.py /tmp/RunningDiary-UIFlow-....xcresult /tmp/ui-
 
 `UI_FLOW_RESULT`로 새 결과 경로를 지정할 수 있다. Xcode에서 RunDiary 스킴의 RunDiaryUITests를 실행해도 된다. 기존 Swift 매크로 의존성을 Xcode에서 승인하거나 신뢰한 로컬 CLI 환경에서 `bash Scripts/run-ui-flow.sh -skipMacroValidation`으로 실행한다.
 
-CI의 RunDiary 스킴에 UI 테스트를 포함하며, UI 테스트 파일 변경도 CI를 실행한다. 테스트 결과는 기존 `test-results` artifact에 보관된다. 시뮬레이터가 공유되지 않도록 UI 타깃은 병렬 실행을 끈다. 화면 전환 애니메이션 후 `hittable`을 기다리고, 고정 지연 대신 화면 상태를 확인한다.
+CI의 RunDiary 스킴에 UI 테스트를 포함하며, UI 테스트 파일 변경도 CI를 실행한다. 테스트 결과는 기존 `test-results` artifact에 보관된다. 시뮬레이터가 공유되지 않도록 UI 타깃은 병렬 실행을 끈다. 로컬 실행 스크립트는 Xcode RC의 부가 진단 수집 지연을 피하기 위해 `-collect-test-diagnostics never`를 사용한다. 테스트 결과와 화면 첨부는 그대로 남는다. 화면 전환 애니메이션 후 `hittable`을 기다리고, 고정 지연 대신 화면 상태를 확인한다.
 
 ## 시나리오
 
@@ -76,7 +76,7 @@ CI의 RunDiary 스킴에 UI 테스트를 포함하며, UI 테스트 파일 변�
 
 ## 검증 결과 — 2026-10-23
 
-- iPhone 17 Pro / iOS 26.5: 5개 UI 테스트, 0개 실패, 123.054초.
+- iPhone 17 Pro / iOS 26.5: 5개 UI 테스트, 0개 실패.
 - 앱·UI 테스트 번들 빌드 성공. 최종 실행에서 이름 있는 캡처 22개를 추출했다.
 - git diff --check, 프로젝트 plist 및 스크립트 구문 확인 완료.
 - 전체 단위 테스트는 이번 로컬 실행에서 재실행하지 않았다. SwiftLint는 로컬에 설치돼 있지 않아 별도 실행하지 못했다.
