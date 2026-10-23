@@ -42,13 +42,18 @@ struct RunDiaryApp: App {
                 ._printChanges()
         } withDependencies: {
             $0.persistencesClient = .live(modelContext: container.mainContext)
-            $0.healthKitClient = .liveValue
-            $0.authClient = .liveValue
-            $0.tokenClient = .liveValue
-            $0.legacyMigrationClient = .live(
-                modelContext: container.mainContext,
-                tokenClient: .liveValue
-            )
+            // Do not construct live services only to discard them for UI fixtures.
+            // Replacing the actor-isolated migration session during dependency
+            // setup crashes in the deinit back-deployment runtime on iOS 26.2.
+            if !isUITesting {
+                $0.healthKitClient = .liveValue
+                $0.authClient = .liveValue
+                $0.tokenClient = .liveValue
+                $0.legacyMigrationClient = .live(
+                    modelContext: container.mainContext,
+                    tokenClient: .liveValue
+                )
+            }
             #if DEBUG
             if isUITesting {
                 let loggedOut = arguments.contains("--ui-login")
