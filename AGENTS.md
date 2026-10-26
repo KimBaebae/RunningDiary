@@ -70,3 +70,6 @@ Git workflow, commit/PR conventions: [CONTRIBUTING.md](./CONTRIBUTING.md)
 세션 시작 시 `.handoff/CURRENT.md` 가 있으면 미완료 인수인계다. 먼저 읽고 목표·진행 상태·제약을 복원한 뒤 "다음 액션"부터 이어서 진행하라. 작업을 마치거나 중단할 때는 이 파일을 최신화하라(없으면 `.handoff/README.md` 참고). 노트는 코드·git으로 복원 가능한 내용은 경로/커맨드로만 참조하는 경량 문서다.
 
 ## Imported Claude Cowork project instructions
+
+## PR visual evidence
+Follow `CONTRIBUTING.md` → `PR visual evidence`: attach a playable simulator recording for UI or observable behavior changes before marking the PR ready. This applies to Codex and Claude Code.

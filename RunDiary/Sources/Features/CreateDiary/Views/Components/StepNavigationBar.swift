@@ -23,12 +23,14 @@ struct StepNavigationBar: View {
                 SaveButton(isEnabled: store.isFormValid && !store.isLoading) {
                     _ = store.send(.saveRecord)
                 }
+                .accessibilityIdentifier("diary.save")
             } else {
                 NextButton(isEnabled: canGoNext) {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         _ = store.send(.nextStepTapped)
                     }
                 }
+                .accessibilityIdentifier("diary.next")
             }
         }
         .padding(.horizontal, 20)

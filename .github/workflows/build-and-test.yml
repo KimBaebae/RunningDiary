@@ -5,6 +5,9 @@ on:
     branches: [ main ]
     paths:
       - 'RunDiary/**'
+      - 'RunDiaryUITests/**'
+      - 'Scripts/run-ui-flow.sh'
+      - '.github/workflows/build-and-test.yml'
       - 'Dependencies/**'
       - 'RunDiary.xcodeproj/**'
       - 'RunDiary.xcworkspace/**'
@@ -14,6 +17,9 @@ on:
     types: [ opened, synchronize, reopened ]
     paths:
       - 'RunDiary/**'
+      - 'RunDiaryUITests/**'
+      - 'Scripts/run-ui-flow.sh'
+      - '.github/workflows/build-and-test.yml'
       - 'Dependencies/**'
       - 'RunDiary.xcodeproj/**'
       - 'RunDiary.xcworkspace/**'

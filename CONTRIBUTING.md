@@ -36,3 +36,13 @@
 - size: recommend under 500 lines
 - assignee: self
 - close issue: `Closes #number`
+
+## PR visual evidence
+
+UI or simulator-observable behavior changes require a short recording in the PR body showing the changed interaction and result. Screenshots are supplemental, not a substitute.
+
+- Upload via the PR editor attachment control and verify playback; do not provide only a local path or commit large video files.
+- Label each clip with its scenario, device/OS and real versus fixture data/server. Do not expose secrets or real user records.
+- For nonvisual changes, mark not applicable and explain why.
+- If recording/upload is blocked, state the reason and remaining action, and keep the affected PR Draft until attachment is complete.
+- This applies equally to Codex, Claude Code and manual PR creation.
