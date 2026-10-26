@@ -6,8 +6,8 @@
 //
 
 import ComposableArchitecture
-import Testing
 @testable import RunDiary
+import Testing
 
 @Suite("SettingsFeature")
 struct SettingsFeatureTests {

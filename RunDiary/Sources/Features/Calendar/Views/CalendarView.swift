@@ -9,8 +9,8 @@ import CommonFoundation
 import ComposableArchitecture
 import HorizonCalendar
 import Models
-import SwiftUI
 import PersistencesService
+import SwiftUI
 
 struct CalendarView: View {
     @Environment(\.dismiss) private var dismiss
@@ -23,30 +23,20 @@ struct CalendarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TodayButton(
-                isEnabled: store.state.isEnabledTodayButton,
-                onTap: {
-                    scrollToDay(.now, animated: true)
-                    store.send(.selectDate(.today))
-                }
-            )
+            TodayButton(isEnabled: store.state.isEnabledTodayButton) {
+                scrollToDay(.now, animated: true)
+                store.send(.selectDate(.today))
+            }
 
-            CalendarContentView(
-                store: store,
-                proxy: proxy,
-                onScroll: {
-                    checkIfNeedsToLoadOlderData()
-                    checkIfNeedsToSaveLastMonth()
-                }
-            )
+            CalendarContentView(store: store, proxy: proxy) {
+                checkIfNeedsToLoadOlderData()
+                checkIfNeedsToSaveLastMonth()
+            }
             .padding(.horizontal, 4)
 
-            DiarySwitchButton(
-                selectedDate: store.selectedDate,
-                onTap: {
-                    store.send(.navigateToDiary)
-                }
-            )
+            DiarySwitchButton(selectedDate: store.selectedDate) {
+                store.send(.navigateToDiary)
+            }
         }
         .background(ignoresSafeAreaEdges: [.bottom])
         .onAppear {

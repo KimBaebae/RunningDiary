@@ -12,79 +12,55 @@ import Models
 
 @DependencyClient
 struct HealthKitClient {
-    var fetchRunningDataOnDate: @MainActor @Sendable (Date) async throws -> [HealthKitWorkout]
     var fetchRunningDataBetweenDates: @MainActor @Sendable (Date, Date) async throws -> [HealthKitWorkout]
 }
 
 extension HealthKitClient: DependencyKey {
-    static let liveValue: HealthKitClient = {
-        let manager = HealthKitManager()
+    static let liveValue: HealthKitClient = .live()
 
-        return HealthKitClient(
-            fetchRunningDataOnDate: { date in
-                try await manager.fetchRunningData(for: date)
-            },
-            fetchRunningDataBetweenDates: { startDate, endDate in
-                try await manager.fetchWeeklyRunningData(from: startDate, to: endDate)
-            }
-        )
-    }()
+    static func live(
+        manager: HealthKitManagerProtocol = HealthKitManager()
+    ) -> HealthKitClient {
+        HealthKitClient { startDate, endDate in
+            try await manager.fetchWeeklyRunningData(from: startDate, to: endDate)
+        }
+    }
 
     static let testValue = HealthKitClient(
-        fetchRunningDataOnDate: unimplemented("\(Self.self).fetchRunningData"),
-        fetchRunningDataBetweenDates: unimplemented("\(Self.self).fetchWeeklyRunningData")
+        fetchRunningDataBetweenDates: unimplemented("\(Self.self).fetchRunningDataBetweenDates")
     )
 
-    static let previewValue = HealthKitClient(
-        fetchRunningDataOnDate: { _ in
-            // Mock 데이터 반환
-            [
-                HealthKitWorkout(
-                    distance: 5.2,
-                    duration: 3665,  // 1시간 1분 5초
-                    averagePace: "5'30\"",
-                    averageHeartRate: 155,
-                    averageCadence: 180,
-                    activeEnergyBurned: 450.0,
-                    runningVerticalOscillation: 8.2,
-                    runningGroundContactTime: 240.0,
-                    walkingStepLength: 1.1,
-                    restingHeartRate: 60.0,
-                    runningPower: 300.0,
-                    runningStrideLength: 1.1,
-                    heartRateRecoveryOneMinute: 20.0,
-                    routeData: nil,
-                    startDate: Calendar.current.date(byAdding: .second, value: -3665, to: .now)!,
-                    endDate: .now
-                )
-            ]
-        },
-        fetchRunningDataBetweenDates: { _, _ in
-            // Mock 주간 데이터 반환 (7일)
-            (0..<7).map { index in
-                // 일부 날짜는 데이터가 없도록 nil 반환
-                let duration = Double.random(in: 1800...5400)
-                return index % 3 == 0 ? nil : HealthKitWorkout(
-                    distance: Double.random(in: 3.0...10.0),
-                    duration: duration,
-                    averagePace: "5'30\"",
-                    averageHeartRate: Int.random(in: 140...170),
-                    averageCadence: Int.random(in: 170...185),
-                    activeEnergyBurned: Double.random(in: 300...600),
-                    runningVerticalOscillation: Double.random(in: 7.0...9.0),
-                    runningGroundContactTime: Double.random(in: 230...260),
-                    walkingStepLength: Double.random(in: 0.9...1.2),
-                    restingHeartRate: Double.random(in: 50...80),
-                    runningPower: Double.random(in: 200...400),
-                    runningStrideLength: Double.random(in: 0.9...1.2),
-                    heartRateRecoveryOneMinute: Double.random(in: 15...30),
-                    routeData: nil,
-                    startDate: Calendar.current.date(byAdding: .second, value: Int(-duration), to: .now)!,
-                    endDate: .now
-                )
-            }.compactMap { $0 }
-        }
-    )
+    static let previewValue = HealthKitClient { _, _ in
+        // Mock 주간 데이터 반환 (7일)
+        (0..<7).map { index in
+            // 일부 날짜는 데이터가 없도록 nil 반환
+            let duration = Double.random(in: 1800...5400)
+            let distance = Double.random(in: 3.0...10.0)
+            let activeEnergyBurned = Double.random(in: 300...600)
+            return index % 3 == 0 ? nil : HealthKitWorkout(
+                distance: distance,
+                duration: duration,
+                averagePaceSecondsPerKm: PaceMapper.secondsPerKm(
+                    fromDurationSec: duration,
+                    distanceKm: distance
+                ),
+                averageHeartRate: Int.random(in: 140...170),
+                averageCadence: Int.random(in: 170...185),
+                activeEnergyBurned: activeEnergyBurned,
+                totalEnergyBurned: activeEnergyBurned + Double.random(in: 60...120),
+                elevationAscended: Double.random(in: 10...80),
+                averageVerticalOscillation: Double.random(in: 7.0...9.0),
+                averageGroundContactTime: Double.random(in: 230...260),
+                averageStepLength: Double.random(in: 0.9...1.2),
+                restingHeartRate: Double.random(in: 50...80),
+                averagePower: Double.random(in: 200...400),
+                averageStrideLength: Double.random(in: 0.9...1.2),
+                heartRateRecoveryOneMinute: Double.random(in: 15...30),
+                startDate: Calendar.current.date(byAdding: .second, value: Int(-duration), to: .now)!,
+                endDate: .now
+            )
+        }.compactMap { $0 }
+    }
 }
 
 extension DependencyValues {

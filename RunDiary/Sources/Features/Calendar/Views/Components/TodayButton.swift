@@ -43,7 +43,7 @@ struct TodayButton: View {
 
 #Preview {
     VStack {
-        TodayButton(isEnabled: true, onTap: {})
-        TodayButton(isEnabled: false, onTap: {})
+        TodayButton(isEnabled: true) {}
+        TodayButton(isEnabled: false) {}
     }
 }

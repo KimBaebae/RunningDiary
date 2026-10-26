@@ -35,40 +35,39 @@ struct LivePersistencesRepositoryTests {
         yearMonthDay: YearMonthDay? = nil,
         distance: Double = 5.0,
         duration: TimeInterval = 1800,
-        averagePace: String = "6'00\"",
+        averagePaceSecondsPerKm: Int? = 360,
         averageHeartRate: Int = 150,
         averageCadence: Int = 170,
         painAreas: [PainArea] = [],
         runningStyle: RunninStyle? = .midfoot,
         memo: String? = nil,
-        shoes: String? = nil,
+        shoeId: String? = nil,
         weather: WeatherData? = nil,
         difficultyLevel: DifficultyLevel? = nil,
-        routeData: Data? = nil,
+        route: [RoutePoint] = [],
         activeEnergyBurned: Double? = nil,
-        runningVerticalOscillation: Double? = nil,
-        runningGroundContactTime: Double? = nil,
-        walkingStepLength: Double? = nil,
+        averageVerticalOscillation: Double? = nil,
+        averageGroundContactTime: Double? = nil,
+        averageStepLength: Double? = nil,
         startOffset: TimeInterval = 0
     ) -> Diary {
         let ymd = yearMonthDay ?? makeYearMonthDay()
         let startTime = ymd.toDate().addingTimeInterval(startOffset)
         let workout = HealthKitWorkout(
-            yearMonthDay: ymd,
             distance: distance,
             duration: duration,
-            averagePace: averagePace,
+            averagePaceSecondsPerKm: averagePaceSecondsPerKm,
             averageHeartRate: averageHeartRate,
             averageCadence: averageCadence,
             activeEnergyBurned: activeEnergyBurned ?? 0,
-            runningVerticalOscillation: runningVerticalOscillation ?? 0,
-            runningGroundContactTime: runningGroundContactTime ?? 0,
-            walkingStepLength: walkingStepLength ?? 0,
+            averageVerticalOscillation: averageVerticalOscillation ?? 0,
+            averageGroundContactTime: averageGroundContactTime ?? 0,
+            averageStepLength: averageStepLength ?? 0,
             restingHeartRate: 0,
-            runningPower: 0,
-            runningStrideLength: 0,
+            averagePower: 0,
+            averageStrideLength: 0,
             heartRateRecoveryOneMinute: 0,
-            routeData: routeData,
+            route: route,
             startDate: startTime,
             endDate: startTime.addingTimeInterval(duration)
         )
@@ -78,7 +77,8 @@ struct LivePersistencesRepositoryTests {
             painAreas: painAreas,
             runningStyle: runningStyle,
             memo: memo,
-            shoes: shoes,
+            // 테스트 저장소는 카탈로그 resolver를 주입하지 않으므로 저장 문자열이 legacyShoe로 복원된다.
+            legacyShoe: shoeId,
             weather: weather,
             difficultyLevel: difficultyLevel
         )
@@ -206,29 +206,7 @@ struct LivePersistencesRepositoryTests {
         // When
         try await repository.updateRunningRecord(
             recordId: recordId,
-            date: nil,
-            distance: expectedDistance,
-            duration: nil,
-            averagePace: nil,
-            averageHeartRate: nil,
-            averageCadence: nil,
-            painAreas: nil,
-            runningStyle: nil,
-            memo: nil,
-            shoes: nil,
-            weather: nil,
-            difficultyLevel: nil,
-            routeData: nil,
-            activeEnergyBurned: nil,
-            runningVerticalOscillation: nil,
-            runningGroundContactTime: nil,
-            walkingStepLength: nil,
-            restingHeartRate: nil,
-            runningPower: nil,
-            runningStrideLength: nil,
-            heartRateRecoveryOneMinute: nil,
-            startTime: nil,
-            endTime: nil
+            patch: DiaryPatch(distance: expectedDistance)
         )
 
         // Then
@@ -246,29 +224,7 @@ struct LivePersistencesRepositoryTests {
         await #expect(throws: PersistencesError.notFound) {
             try await repository.updateRunningRecord(
                 recordId: nonExistentId,
-                date: nil,
-                distance: 10.0,
-                duration: nil,
-                averagePace: nil,
-                averageHeartRate: nil,
-                averageCadence: nil,
-                painAreas: nil,
-                runningStyle: nil,
-                memo: nil,
-                shoes: nil,
-                weather: nil,
-                difficultyLevel: nil,
-                routeData: nil,
-                activeEnergyBurned: nil,
-                runningVerticalOscillation: nil,
-                runningGroundContactTime: nil,
-                walkingStepLength: nil,
-                restingHeartRate: nil,
-                runningPower: nil,
-                runningStrideLength: nil,
-                heartRateRecoveryOneMinute: nil,
-                startTime: nil,
-                endTime: nil
+                patch: DiaryPatch(distance: 10.0)
             )
         }
     }
@@ -287,7 +243,7 @@ struct LivePersistencesRepositoryTests {
             averageHeartRate: 150,
             averageCadence: 170,
             memo: "하아아아암",
-            shoes: "Nike"
+            shoeId: "Nike"
         )
 
         try await repository.saveRunningRecord(originalDiary)
@@ -298,35 +254,13 @@ struct LivePersistencesRepositoryTests {
         // When - 거리와 신발만 업데이트
         try await repository.updateRunningRecord(
             recordId: recordId,
-            date: nil,
-            distance: expectedDistance,
-            duration: nil,
-            averagePace: nil,
-            averageHeartRate: nil,
-            averageCadence: nil,
-            painAreas: nil,
-            runningStyle: nil,
-            memo: nil,
-            shoes: expectedShoes,
-            weather: nil,
-            difficultyLevel: nil,
-            routeData: nil,
-            activeEnergyBurned: nil,
-            runningVerticalOscillation: nil,
-            runningGroundContactTime: nil,
-            walkingStepLength: nil,
-            restingHeartRate: nil,
-            runningPower: nil,
-            runningStrideLength: nil,
-            heartRateRecoveryOneMinute: nil,
-            startTime: nil,
-            endTime: nil
+            patch: DiaryPatch(distance: expectedDistance, shoes: expectedShoes)
         )
 
         // Then - 업데이트된 필드 확인
         let fetched = try await repository.fetchRunningRecord(for: testDate.toDate())
         #expect(fetched?.workout.distance == expectedDistance)
-        #expect(fetched?.shoes == expectedShoes)
+        #expect(fetched?.legacyShoe == expectedShoes)
 
         // 업데이트하지 않은 필드는 원래 값 유지
         #expect(fetched?.workout.duration == 1800)

@@ -13,18 +13,22 @@ import SwiftData
 public final class LivePersistencesRepository: PersistencesRepository {
     // ModelContext : 데이터 변경을 추적하고 저장/조회/삭제를 실행하는 중심 객체
     private let modelContext: ModelContext
-    private var cache: [YearMonthDay: [Diary]] = [:]
+    private let cache = NSCache<YearMonthDayCacheKey, DiaryArrayCacheValue>()
 
     public init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 
-    public func fetchRunningRecord(for date: Date) async throws -> Diary? {
+    public func fetchRunningRecord(
+        for date: Date,
+        shoeResolver: @escaping @Sendable (String) -> Shoe?
+    ) async throws -> Diary? {
         let yearMonthDay = YearMonthDay(date: date)
+        let cacheKey = YearMonthDayCacheKey(yearMonthDay)
 
         // 1. 캐시 확인
-        if let cachedRecords = cache[yearMonthDay] {
-            return cachedRecords.first
+        if let cachedValue = cache.object(forKey: cacheKey) {
+            return cachedValue.diaries.first
         }
 
         // 2. 캐시 미스: DB 조회
@@ -43,20 +47,24 @@ public final class LivePersistencesRepository: PersistencesRepository {
         )
 
         let models = try modelContext.fetch(descriptor)
-        let records = models.map { $0.toDomain() }
+        let records = models.map { $0.toDomain(shoeResolver: shoeResolver) }
 
         // 3. 캐시에 저장
-        cache[yearMonthDay] = records
+        cache.setObject(DiaryArrayCacheValue(records), forKey: cacheKey)
 
         return records.first
     }
 
-    public func fetchRunningRecords(from startDate: Date, to endDate: Date) async throws -> [Diary] {
+    public func fetchRunningRecords(
+        from startDate: Date,
+        to endDate: Date,
+        shoeResolver: @escaping @Sendable (String) -> Shoe?
+    ) async throws -> [Diary] {
         // 1. 요청 범위의 날짜들 추출
         let requestedDates = generateDateRange(from: startDate, to: endDate)
 
         // 2. 캐시 히트 확인
-        let missingDates = requestedDates.filter { !cache.keys.contains($0) }
+        let missingDates = requestedDates.filter { cache.object(forKey: YearMonthDayCacheKey($0)) == nil }
 
         // 3. 캐시 미스인 날짜만 DB 조회
         if !missingDates.isEmpty {
@@ -74,17 +82,19 @@ public final class LivePersistencesRepository: PersistencesRepository {
             )
 
             let models = try modelContext.fetch(descriptor)
-            let fetchedRecords = models.map { $0.toDomain() }
+            let fetchedRecords = models.map { $0.toDomain(shoeResolver: shoeResolver) }
 
             // 4. 날짜별로 그룹핑하여 캐시에 저장
             let groupedRecords = Dictionary(grouping: fetchedRecords, by: \.workout.yearMonthDay)
             for date in missingDates {
-                cache[date] = groupedRecords[date] ?? []
+                let cacheKey = YearMonthDayCacheKey(date)
+                let cacheValue = DiaryArrayCacheValue(groupedRecords[date] ?? [])
+                cache.setObject(cacheValue, forKey: cacheKey)
             }
         }
 
         // 5. 캐시에서 결과 추출
-        let result = requestedDates.flatMap { cache[$0] ?? [] }
+        let result = requestedDates.flatMap { cache.object(forKey: YearMonthDayCacheKey($0))?.diaries ?? [] }
 
         return result
     }
@@ -96,38 +106,13 @@ public final class LivePersistencesRepository: PersistencesRepository {
         do {
             try modelContext.save()
             // 캐시 invalidate
-            cache.removeValue(forKey: record.workout.yearMonthDay)
+            cache.removeObject(forKey: YearMonthDayCacheKey(record.workout.yearMonthDay))
         } catch {
             throw PersistencesError.saveFailed
         }
     }
 
-    public func updateRunningRecord(
-        recordId: UUID,
-        date: YearMonthDay?,
-        distance: Double?,
-        duration: TimeInterval?,
-        averagePace: String?,
-        averageHeartRate: Int?,
-        averageCadence: Int?,
-        painAreas: [PainArea]?,
-        runningStyle: RunninStyle?,
-        memo: String?,
-        shoes: String?,
-        weather: WeatherData?,
-        difficultyLevel: DifficultyLevel?,
-        routeData: Data?,
-        activeEnergyBurned: Double?,
-        runningVerticalOscillation: Double?,
-        runningGroundContactTime: Double?,
-        walkingStepLength: Double?,
-        restingHeartRate: Double?,
-        runningPower: Double?,
-        runningStrideLength: Double?,
-        heartRateRecoveryOneMinute: Double?,
-        startTime: Date?,
-        endTime: Date?
-    ) async throws {
+    public func updateRunningRecord(recordId: UUID, patch: DiaryPatch) async throws {
         let predicate = #Predicate<RunningRecordPersistenceModel> { $0.id == recordId }
         let descriptor = FetchDescriptor<RunningRecordPersistenceModel>(predicate: predicate)
 
@@ -136,38 +121,14 @@ public final class LivePersistencesRepository: PersistencesRepository {
         }
 
         // nil이 아닌 값만 할당
-        if let date { existingModel.date = date.toDate() }
-        if let distance { existingModel.distance = distance }
-        if let duration { existingModel.duration = duration }
-        if let averagePace { existingModel.averagePace = averagePace }
-        if let averageHeartRate { existingModel.averageHeartRate = averageHeartRate }
-        if let averageCadence { existingModel.averageCadence = averageCadence }
-        if let painAreas { existingModel.painAreasRawData = PainAreasMapper.encode(painAreas) }
-        if let runningStyle { existingModel.runningStyleRaw = runningStyle.rawValue }
-        if let memo { existingModel.memo = memo }
-        if let shoes { existingModel.shoes = shoes }
-        if let weather {
-            existingModel.temperature = weather.temperature
-            existingModel.humidity = weather.humidity
-            existingModel.windSpeed = weather.windSpeed
-        }
-        if let difficultyLevel { existingModel.difficultyLevelRaw = difficultyLevel.rawValue }
-        if let routeData { existingModel.routeData = routeData }
-        if let activeEnergyBurned { existingModel.activeEnergyBurned = activeEnergyBurned }
-        if let runningVerticalOscillation { existingModel.runningVerticalOscillation = runningVerticalOscillation }
-        if let runningGroundContactTime { existingModel.runningGroundContactTime = runningGroundContactTime }
-        if let walkingStepLength { existingModel.walkingStepLength = walkingStepLength }
-        if let restingHeartRate { existingModel.restingHeartRate = restingHeartRate }
-        if let runningPower { existingModel.runningPower = runningPower }
-        if let runningStrideLength { existingModel.runningStrideLength = runningStrideLength }
-        if let heartRateRecoveryOneMinute { existingModel.heartRateRecoveryOneMinute = heartRateRecoveryOneMinute }
-        if let startTime { existingModel.startTime = startTime }
-        if let endTime { existingModel.endTime = endTime }
+        Self.applyWorkoutSummary(patch, to: existingModel)
+        Self.applyDiaryDetails(patch, to: existingModel)
+        Self.applyWorkoutMetrics(patch, to: existingModel)
 
         do {
             try modelContext.save()
             let yearMonthDay = YearMonthDay(date: existingModel.date)
-            cache.removeValue(forKey: yearMonthDay)
+            cache.removeObject(forKey: YearMonthDayCacheKey(yearMonthDay))
         } catch {
             throw PersistencesError.updateFailed
         }
@@ -190,10 +151,60 @@ public final class LivePersistencesRepository: PersistencesRepository {
             try modelContext.save()
 
             // 캐시 invalidate
-            cache.removeValue(forKey: record.workout.yearMonthDay)
+            cache.removeObject(forKey: YearMonthDayCacheKey(record.workout.yearMonthDay))
         } catch {
             throw PersistencesError.deleteFailed
         }
+    }
+
+    // MARK: - Patch 적용
+
+    /// 워크아웃 요약(날짜·거리·시간·페이스·심박·케이던스)을 반영한다.
+    private static func applyWorkoutSummary(
+        _ patch: DiaryPatch,
+        to model: RunningRecordPersistenceModel
+    ) {
+        if let date = patch.date { model.date = date.toDate() }
+        if let distance = patch.distance { model.distance = distance }
+        if let duration = patch.duration { model.duration = duration }
+        if let averagePace = patch.averagePace { model.averagePace = averagePace }
+        if let averageHeartRate = patch.averageHeartRate { model.averageHeartRate = averageHeartRate }
+        if let averageCadence = patch.averageCadence { model.averageCadence = averageCadence }
+    }
+
+    /// 사용자가 기록하는 일지 항목(통증·주법·메모·신발·날씨·난이도·경로)을 반영한다.
+    private static func applyDiaryDetails(
+        _ patch: DiaryPatch,
+        to model: RunningRecordPersistenceModel
+    ) {
+        if let painAreas = patch.painAreas { model.painAreasRawData = PainAreasMapper.encode(painAreas) }
+        if let runningStyle = patch.runningStyle { model.runningStyleRaw = runningStyle.rawValue }
+        if let memo = patch.memo { model.memo = memo }
+        if let shoes = patch.shoes { model.shoes = shoes }
+        if let weather = patch.weather {
+            model.temperature = weather.temperature
+            model.humidity = weather.humidity
+            model.windSpeed = weather.windSpeed
+        }
+        if let difficultyLevel = patch.difficultyLevel { model.difficultyLevelRaw = difficultyLevel.rawValue }
+        if let routeData = patch.routeData { model.routeData = routeData }
+    }
+
+    /// HealthKit에서 가져오는 상세 지표와 운동 시각을 반영한다.
+    private static func applyWorkoutMetrics(
+        _ patch: DiaryPatch,
+        to model: RunningRecordPersistenceModel
+    ) {
+        if let value = patch.activeEnergyBurned { model.activeEnergyBurned = value }
+        if let value = patch.runningVerticalOscillation { model.runningVerticalOscillation = value }
+        if let value = patch.runningGroundContactTime { model.runningGroundContactTime = value }
+        if let value = patch.walkingStepLength { model.walkingStepLength = value }
+        if let value = patch.restingHeartRate { model.restingHeartRate = value }
+        if let value = patch.runningPower { model.runningPower = value }
+        if let value = patch.runningStrideLength { model.runningStrideLength = value }
+        if let value = patch.heartRateRecoveryOneMinute { model.heartRateRecoveryOneMinute = value }
+        if let startTime = patch.startTime { model.startTime = startTime }
+        if let endTime = patch.endTime { model.endTime = endTime }
     }
 
     // MARK: - Helper Methods
