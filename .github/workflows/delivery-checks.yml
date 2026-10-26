@@ -1,0 +1,32 @@
+name: Delivery policy checks
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/**', 'Scripts/*delivery*', 'fastlane/**', '.agents/skills/**', 'docs/engineering/delivery.md']
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+    paths: ['.github/workflows/**', 'Scripts/*delivery*', 'fastlane/**', '.agents/skills/**', 'docs/engineering/delivery.md']
+
+permissions:
+  contents: read
+
+jobs:
+  delivery-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - name: Validate workflow syntax and manual deployment triggers
+        run: |
+          ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.load_file(f) }; %w[testflight release].each { |n| data = YAML.load_file(".github/workflows/#{n}.yml"); events = data["on"] || data[true]; abort "Deployment must be manual only" unless events.keys == ["workflow_dispatch"] }'
+          ruby -c fastlane/Fastfile
+      - name: Test candidate and build identity guards
+        run: python3 -m unittest discover -s Scripts -p 'test_verify_delivery.py' -v
+      - name: Verify existing-build submission without Apple access
+        run: ruby Scripts/test_delivery_lanes.rb
