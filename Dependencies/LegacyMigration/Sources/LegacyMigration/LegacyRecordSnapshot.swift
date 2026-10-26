@@ -33,6 +33,8 @@ public struct LegacyRecordSnapshot: Codable, Equatable, Sendable {
     public var startTime: Double
     public var endTime: Double
 
+    /// 영속 값의 단위와 선택 값의 누락 상태를 유지해 스냅샷을 만든다.
+    /// 날짜는 Unix epoch 초, 거리는 km, 운동 시간은 초이며 원본 UUID를 사용한다.
     public init(
         id: UUID,
         date: Double,
@@ -97,6 +99,8 @@ public struct LegacyRecordSnapshot: Codable, Equatable, Sendable {
         self.endTime = endTime
     }
 
+    /// 키를 정렬한 UTF-8 JSON 원문을 생성한다. 이 문자열 자체가 전송·해시 검증의 기준이다.
+    /// `Data`는 Codable의 base64 표현을 사용하며, 인코딩할 수 없는 값은 오류로 전달한다.
     public func json() throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]

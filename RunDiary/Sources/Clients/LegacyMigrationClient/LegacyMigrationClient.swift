@@ -51,6 +51,8 @@ final class LegacyMigrationSession {
         self.tokenClient = tokenClient
     }
 
+    /// 계정과 토큰을 확인하고 SwiftData 영속 값을 읽어 사용자 확인용 전송 대상을 고정한다.
+    /// 기록을 업로드하거나 원본을 변경하지 않으며, 준비 도중 토큰이 바뀌면 중단한다.
     func prepare() async throws -> MigrationPreparation {
         prepared = nil
         guard let token = tokenClient.accessToken(), !token.isEmpty else { throw MigrationError.signedOut }
@@ -77,6 +79,8 @@ final class LegacyMigrationSession {
             accountID: account.id, accountLabel: account.email ?? account.id, count: snapshots.count)
     }
 
+    /// 마지막으로 준비한 스냅샷을 전송한다. 준비가 없거나 인증 세션이 달라지면 실패한다.
+    /// 엔진이 정상 반환하면 준비 상태를 비우고, 중단된 전송은 체크포인트로 재시도할 수 있다.
     func run(progress: @escaping @Sendable (MigrationProgress) async -> Void) async throws -> MigrationProgress {
         guard let prepared, let engine else { throw MigrationError.sessionChanged }
         let result = try await engine.run(
@@ -87,6 +91,7 @@ final class LegacyMigrationSession {
         return result
     }
 
+    /// 영속 필드 30개를 직접 복사한다. UUID·enum raw 값·경로 Data를 재생성하거나 정규화하지 않는다.
     static func snapshot(_ model: RunningRecordPersistenceModel) -> LegacyRecordSnapshot {
         LegacyRecordSnapshot(
             id: model.id,

@@ -30,12 +30,20 @@ public actor MigrationEngine {
     private let remote: MigrationRemote
     private var running = false
 
+    /// 체크포인트 저장 위치와 서버 환경을 지정한다. 실행 시 인증된 계정별 파일로 분리한다.
     public init(directory: URL, environment: String, remote: MigrationRemote) {
         self.directory = directory
         self.environment = environment
         self.remote = remote
     }
 
+    /// 준비한 스냅샷을 순차 전송하고 PUT 응답과 후속 GET 원문을 모두 검증한다.
+    ///
+    /// 같은 원문으로 검증 완료된 기록은 체크포인트에서 건너뛰며 로컬 원본은 수정하지 않는다.
+    /// 원문 변경·409 충돌·전송 전 크기 초과는 실패 수에 포함하고 다음 기록을 처리한다.
+    /// 취소, 토큰·계정 변경, 저장소 오류 및 그 밖의 전송·검증 오류는 throw하여 중단한다.
+    /// 호출자는 최신 토큰을 제공해야 하며, 재시도 시 보존된 체크포인트를 사용한다.
+    /// - Returns: 이미 검증된 기록을 포함한 완료 수와 처리한 기록별 실패 수.
     public func run(
         snapshots: [LegacyRecordSnapshot],
         expectedAccountID: String,

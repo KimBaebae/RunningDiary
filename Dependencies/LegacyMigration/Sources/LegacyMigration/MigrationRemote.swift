@@ -36,6 +36,7 @@ public struct ImportReceipt: Codable, Sendable {
     public let snapshotJSON: String
     public let sha256: String
 
+    /// 주어진 원문으로 해시를 계산하는 영수증을 만든다. 실제 서버 응답은 Codable로 디코딩한다.
     public init(id: String, recordId: UUID, status: String = "ready", snapshotJSON: String) {
         self.id = id
         self.recordId = recordId
@@ -44,10 +45,13 @@ public struct ImportReceipt: Codable, Sendable {
         self.sha256 = Self.hash(snapshotJSON)
     }
 
+    /// JSON을 재인코딩하지 않고 문자열의 UTF-8 바이트에 대한 소문자 SHA-256을 반환한다.
     public static func hash(_ value: String) -> String {
         SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// 기록 UUID, ready 상태, 원문 문자열과 해시를 비교한다.
+    /// PUT과 GET의 서버 ID 일치 여부는 호출자가 별도로 확인해야 한다.
     public func verifies(id: UUID, raw: String) -> Bool {
         recordId == id && status == "ready" && snapshotJSON == raw && sha256 == Self.hash(raw)
     }
@@ -58,6 +62,7 @@ public struct MigrationRemote: Sendable {
     public var put: @Sendable (UUID, String, String) async throws -> ImportReceipt
     public var get: @Sendable (UUID, String) async throws -> ImportReceipt
 
+    /// 계정 조회, 원문 업로드, 영수증 재조회 연산을 주입한다. 각 연산의 마지막 인자는 인증 토큰이다.
     public init(
         account: @escaping @Sendable (String) async throws -> MigrationAccount,
         put: @escaping @Sendable (UUID, String, String) async throws -> ImportReceipt,
@@ -68,6 +73,8 @@ public struct MigrationRemote: Sendable {
         self.get = get
     }
 
+    /// Bearer 인증으로 계정 조회와 schemaVersion 1 레거시 PUT/GET을 수행하는 클라이언트를 만든다.
+    /// 401/403은 인증 오류, 404는 미지원, 409는 충돌, 413은 크기 초과로 전달하며 자동 재시도하지 않는다.
     public static func live(baseURL: URL, session: URLSession = .shared) -> Self {
         let http = MigrationHTTP(baseURL: baseURL, session: session)
         return Self(
