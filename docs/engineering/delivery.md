@@ -33,7 +33,7 @@
 
 2026-10-26 확인: main `373f8e0`에는 release/v1.2.0 `61e0e76`의 과거 변경 275개 파일이 아직 없다. #32만 main으로 바꾸면 이 변경까지 섞인다.
 
-1. 이 정책 PR을 먼저 main에 반영한다. 기존 자동 App Store 제출 및 release push TestFlight 트리거를 제거한다. 적용 전에는 옛 release/hotfix→main PR을 머지하지 않는다.
+1. 이 정책 PR을 먼저 main에 반영한다. 기존 자동 App Store 제출 및 release push TestFlight 트리거를 제거한다. 적용 전에는 옛 release/hotfix→main PR을 머지하지 않는다. main의 설정 변경만으로 옛 release 브랜치의 워크플로 파일까지 바뀌지는 않으므로, 전환 중 release 브랜치에 push/merge하지 않는다.
 2. 기존 release 작업은 별도의 일회성 통합 PR로 main에 가져온다. 정책 PR의 수동 배포 설정·Fastfile·공통 규칙을 보존하고, 기존 release의 앱 코드·스키마 이력·테스트는 누락 없이 검토한다. 이 통합은 이력 보존용 merge commit을 사용한다(squash 예외). 기존 release를 리셋하거나 선제 삭제하지 않는다.
 3. release 기준 이력이 main에 들어온 뒤 #32의 base를 main으로 변경한다. 정책 문서·배포 설정을 유지하고 최신 main과 통합한 CI를 다시 확인한다. 명세 이동 리뷰는 반영됐지만 서버 #5 배포·테스트 계정 왕복·실제 과거 스토어 검증은 별도 조건이다. 현재 사용자에게 노출되는 전송 기능은 서버 준비 또는 별도 승인된 비노출 처리 없이 준비 완료로 간주하지 않는다.
 4. #33은 #32를 기반으로 한 기존 예외다. #32가 main에 반영된 뒤 #33을 main 기준으로 옮겨 중복 변경을 제거하고 CI·무료 리뷰를 다시 확인한다. 기존 녹화·UI 테스트를 유지한다. #32를 squash merge했다면 #33의 고유 커밋만 main 위로 재배치해야 하므로 단순 base 변경만으로 완료했다고 판단하지 않는다.
