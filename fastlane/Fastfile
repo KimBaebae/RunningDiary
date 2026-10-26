@@ -28,57 +28,52 @@ platform :ios do
     )
 
     match(
-    	git_url: "git@github.com:khyeji98/RunningDiary-certificates.git",
-    	storage_mode: "git",
-    	type: "development",
-    	api_key: api_key,
-    	force: true
+      git_url: "git@github.com:KimBaebae/RunningDiary-certificates.git",
+      storage_mode: "git",
+      type: "development",
+      api_key: api_key,
+      force: true
     )
 
     match(
-    	git_url: "git@github.com:khyeji98/RunningDiary-certificates.git",
-    	storage_mode: "git",
-    	type: "appstore",
-    	api_key: api_key,
-    	force: true
+      git_url: "git@github.com:KimBaebae/RunningDiary-certificates.git",
+      storage_mode: "git",
+      type: "appstore",
+      api_key: api_key,
+      force: true
     )
   end
 
   desc "Push a new beta build to TestFlight"
 
-  private_lane :inject_private_configs do
-    token = ENV["SECRETS_REPO_TOKEN"]
-    sh("git clone https://#{token}@github.com/KimBaebae/rundiary-secrets.git .private --depth 1 --quiet")
-    sh("cp .private/Secrets.xcconfig ../Config/Secrets.xcconfig")
-    sh("rm -rf .private")
-  end
-
   lane :beta do
 
-    inject_private_configs
+    UI.user_error!("Config/Secrets.xcconfig is required") unless File.exist?(File.expand_path("../Config/Secrets.xcconfig", __dir__))
+
+    %w[RELEASE_SOURCE_SHA RELEASE_RUN_ID RELEASE_RUN_ATTEMPT].each { |key| ENV.fetch(key) }
 
     # 0️⃣ 기존 Keychain 제거
     sh("security delete-keychain #{ENV['KEYCHAIN_NAME']} || true")
 
     # 1️⃣ Keychain 생성
     create_keychain(
-    	name: ENV["KEYCHAIN_NAME"],
-    	password: ENV["KEYCHAIN_PASSWORD"],
-    	timeout: 3600,
-    	default_keychain: true,
-    	unlock: true,
-    	lock_when_sleeps: false,
-	add_to_search_list: true
+      name: ENV["KEYCHAIN_NAME"],
+      password: ENV["KEYCHAIN_PASSWORD"],
+      timeout: 3600,
+      default_keychain: true,
+      unlock: true,
+      lock_when_sleeps: false,
+  add_to_search_list: true
     )
 
     # 2️⃣ Match 인증서/프로비저닝 설정
     match(
-    	git_url: "git@github.com:khyeji98/RunningDiary-certificates.git",
-    	storage_mode: "git",
-    	type: "appstore",
-    	readonly: true,
-    	keychain_name: ENV["KEYCHAIN_NAME"],
-    	keychain_password: ENV["KEYCHAIN_PASSWORD"]
+      git_url: "git@github.com:KimBaebae/RunningDiary-certificates.git",
+      storage_mode: "git",
+      type: "appstore",
+      readonly: true,
+      keychain_name: ENV["KEYCHAIN_NAME"],
+      keychain_password: ENV["KEYCHAIN_PASSWORD"]
     )
 
     api_key = app_store_connect_api_key(
@@ -87,97 +82,65 @@ platform :ios do
         key_content: ENV["APP_STORE_CONNECT_API_KEY_CONTENT"]
     )
 
-    current_version = get_version_number
+    current_version = get_version_number(xcodeproj: "RunDiary.xcodeproj", target: "RunDiary")
 
     latest_build_number=latest_testflight_build_number(
-	api_key: api_key,
-	version: current_version,
-	initial_build_number: 0
+  api_key: api_key,
+  version: current_version,
+  initial_build_number: 0
     )
 
     increment_build_number(
-	build_number: latest_build_number + 1
+  build_number: latest_build_number + 1
     )
 
     build_app(
-      	project: "RunDiary.xcodeproj",
+        project: "RunDiary.xcodeproj",
         scheme: "RunDiary-Release",
-	export_method: "app-store",
-	destination: "generic/platform=iOS",
-	clean: true
+  export_method: "app-store",
+  destination: "generic/platform=iOS",
+  clean: true
     )
 
     upload_to_testflight(
-	api_key: api_key,
-	skip_waiting_for_build_processing: true
+  api_key: api_key,
+  skip_waiting_for_build_processing: true
     )
+    require "json"
+    File.write(File.join(__dir__, "build-identity.json"), JSON.generate({
+      sha: ENV.fetch("RELEASE_SOURCE_SHA"),
+      version: current_version.to_s,
+      build: (latest_build_number + 1).to_s,
+      run_id: ENV.fetch("RELEASE_RUN_ID"),
+      run_attempt: ENV.fetch("RELEASE_RUN_ATTEMPT")
+    }))
+
   end
 
   desc "Deploy a new version to the App Store"
 
   lane :release do
-
-    inject_private_configs
-
-    # 0️⃣ 기존 Keychain 제거
-    sh("security delete-keychain #{ENV['KEYCHAIN_NAME']} || true")
-
-    # 1️⃣ Keychain 생성
-    create_keychain(
-    	name: ENV["KEYCHAIN_NAME"],
-    	password: ENV["KEYCHAIN_PASSWORD"],
-    	timeout: 3600,
-    	default_keychain: true,
-    	unlock: true,
-    	lock_when_sleeps: false,
-	add_to_search_list: true
-    )
-
-    # 2️⃣ Match 인증서/프로비저닝 설정
-    match(
-    	git_url: "git@github.com:khyeji98/RunningDiary-certificates.git",
-    	storage_mode: "git",
-    	type: "appstore",
-    	readonly: true,
-    	keychain_name: ENV["KEYCHAIN_NAME"],
-    	keychain_password: ENV["KEYCHAIN_PASSWORD"]
-    )
-
+    version = ENV.fetch("RELEASE_APP_VERSION")
+    build = ENV.fetch("RELEASE_BUILD_NUMBER")
+    UI.user_error!("Invalid app version") unless version.match?(/\A\d+\.\d+\.\d+\z/)
+    UI.user_error!("Invalid build number") unless build.match?(/\A\d+\z/)
     api_key = app_store_connect_api_key(
-        key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
-        issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
-        key_content: ENV["APP_STORE_CONNECT_API_KEY_CONTENT"]
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
+      key_content: ENV["APP_STORE_CONNECT_API_KEY_CONTENT"]
     )
-
-    current_version = get_version_number
-
-    latest_build_number = latest_testflight_build_number(
-	api_key: api_key,
-	version: current_version,
-	initial_build_number: 0
-    )
-
-    increment_build_number(
-	build_number: latest_build_number + 1
-    )
-
-    build_app(
-      	project: "RunDiary.xcodeproj",
-        scheme: "RunDiary-Release",
-	export_method: "app-store",
-	destination: "generic/platform=iOS",
-	clean: true
-    )
-
     upload_to_app_store(
-	api_key: api_key,
-	force: true,
-	skip_metadata: false,
-	skip_screenshots: true,
-	submit_for_review: true,
-	automatic_release: true,
-	run_precheck_before_submit: true,
-	precheck_include_in_app_purchases: false
+      api_key: api_key,
+      app_version: version,
+      build_number: build,
+      skip_binary_upload: true,
+      skip_metadata: false,
+      skip_screenshots: true,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      run_precheck_before_submit: true,
+      precheck_include_in_app_purchases: false
     )
   end
 end

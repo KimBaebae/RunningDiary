@@ -66,3 +66,9 @@ gha-creds-*.json
 ### Data Analysis ###
 
 .superset/
+
+# Manual delivery evidence and transient checks
+fastlane/build-identity.json
+.release-evidence/
+.secrets/
+__pycache__/

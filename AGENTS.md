@@ -1,72 +1,22 @@
-# Running Log Diary
+# RunningDiary 공통 작업 규칙
 
-## Overview
-- **Goal**: Manage daily running logs and condition tracking
-- **Core Design**: Built with predictable state management and modularized features based on TCA.
-- **Key Concept**: Focused on clear state–action boundaries and data-driven UI updates.
+Codex와 Claude Code 모두 이 문서와 `CONTRIBUTING.md`를 따른다.
 
-## Tech Stack
-- **Architecture**: TCA (@Reducer, State, Action, Dependency)
-- **Storage**: SwiftData (Repository pattern)
-- **Integration**: HealthKit (distance/heart rate/cadence/route), Shoes API, Weather API
+- 앱: SwiftUI, TCA, SwiftData, HealthKit. 기능은 `RunDiary/Sources/Features/`, 공유 코드는 `Dependencies/`에 있다.
+- TCA는 State/Action 경계를 유지하고 Client 의존성을 mock으로 주입한다. Reducer 테스트는 TestStore, 테스트 설명은 한국어, `make*` 헬퍼와 명시적인 기대값을 사용한다.
+- 기존 SwiftData 스키마와 사용자 기록을 보존한다. 서버 DTO 매핑과 이관 체크포인트는 영속 모델과 분리한다.
+- 기능 개발: `.agents/skills/runningdiary-feature/SKILL.md`.
+- 배포: `.agents/skills/runningdiary-deploy/SKILL.md`와 `docs/engineering/delivery.md`.
+- 다른 세션의 미커밋 변경을 보존한다. `.handoff/CURRENT.md`가 있으면 읽고 작업 종료 시 갱신한다.
+- 코드 변경은 관련 테스트, 문서·배포 설정 변경은 링크·구문·배포 가드 검증을 수행한다. 화면이나 관찰 가능한 동작 변경은 CONTRIBUTING의 PR 녹화 규칙을 적용한다.
+- 리뷰 코멘트는 현재 코드와 대조한 뒤 해결안·영향을 제시하고 사용자 승인 후 수정·push한다. 이미 승인된 해결안은 재확인하지 않는다.
+- 별도 유료 AI API, 유료 체험·유료 전환·추가 과금에 동의하지 않는다. 별도 승인 없이 과금될 예정이라는 안내가 나타나면 작업을 멈추고 사용자에게 알린다.
+- GitHub 쓰기는 개인 계정 `khyeji98`을 검증한 뒤 수행한다. Chrome은 Hyeji 프로필을 사용한다.
+- 실제 PR/push/CI 재실행 뒤 설치된 `runningdiary-ci-watch` 스킬이 있으면 적용한다. 배포는 별도 승인된 수동 실행만 감시하며 자동 dispatch하지 않는다. 로컬 준비만으로 감시를 켜지 않는다.
+- 서버는 별도 저장소·담당자 소관이다. 필요한 API 변경 PR과 리뷰 요청까지만 수행하며 앱 규칙으로 서버 브랜치·배포 정책을 바꾸지 않는다.
 
-## Main Screens
-1. **Daily Logs** (Main): Date carousel, HealthKit data, pain/stride/condition, shoes, weather, route
-2. **Calendar View**: Satisfaction visualization
-3. **Add/Edit Log**: Import from HealthKit or manual entry
+## 기존 상세 규칙
 
-## Priorities
-1. ✅ Setup
-2. 🔄 Basic UI structure (date carousel, mock data)
-3. ⏳ HealthKit integration
-4. ⏳ Log entry screen
-5. ⏳ Calendar view
-6. ⏳ SwiftData + Repository
-7. ⏳ External API integration
-
-## Coding Guidelines
-- **Naming**: SwiftLint + Swift API Guidelines
-  - Types: UpperCamelCase (`~View`, `~Feature`)
-  - Variables/functions: lowerCamelCase
-- **TCA**: `@Reducer` macro, separate State/Action, `@Dependency` injection
-- **Access Control**: default internal, private when unnecessary
-
-## Testing Strategy (Swift Testing + TCA)
-- **Testing**: Reducers must use TestStore, Dependencies require mock implementations
-- **Framework**: Swift Testing (`@Test`, `#expect`)
-- **Naming**: `test_trigger_result`
-
-### AI Rules (Strict)
-1. **Korean Descriptions**: `@Test` macro MUST have a descriptive **Korean** name. (e.g., `@Test("버튼 클릭 시 카운트 증가")`).
-2. **Helper `make*`**: MUST encapsulate `TestStore` or SUT creation in `make*` private helpers (e.g., `makeTestStore`).
-3. **Expected Constants**: Define expected values as constants (`let expected...`) *before* assertions/actions for clarity.
-4. **TCA Pattern**: Use `await store.send(...)` and `await store.receive(...)` with `withDependencies` for mocking.
-
-### Compact Template
-```swift
-@Test("테스트 시나리오 설명(한글)")
-func action_result() async {
-    // Given
-    let expectedVal = ...
-    let store = makeTestStore(initialState: ...)
-    
-    // When
-    await store.send(.action) {
-        // Then
-        $0.state = expectedVal
-    }
-}
-
-// Helper (in private extension)
-func makeTestStore(...) -> TestStore<State, Action> { ... }
-```
-
-See existing feature files for detailed examples
-
-## Collaboration
-Git workflow, commit/PR conventions: [CONTRIBUTING.md](./CONTRIBUTING.md)
-
-## Handoff Protocol
-세션 시작 시 `.handoff/CURRENT.md` 가 있으면 미완료 인수인계다. 먼저 읽고 목표·진행 상태·제약을 복원한 뒤 "다음 액션"부터 이어서 진행하라. 작업을 마치거나 중단할 때는 이 파일을 최신화하라(없으면 `.handoff/README.md` 참고). 노트는 코드·git으로 복원 가능한 내용은 경로/커맨드로만 참조하는 경량 문서다.
-
-## Imported Claude Cowork project instructions
+- `.claude/rules/tca-convention.md`, `testing-convention.md`, `preview-convention.md`, `commit-convention.md`는 파일 경로명과 관계없이 Codex와 Claude Code 모두 적용한다.
+- 기존 테스트 명세 재작성은 `.claude/skills/feature-respec-tc/SKILL.md`가 명시적으로 요청된 경우에만 적용한다. 일반 개발에서 테스트를 일괄 주석 처리하지 않는다.
+- 문자열 생성은 `.claude/skills/refresh-strings/SKILL.md`를 참고한다.

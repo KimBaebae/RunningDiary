@@ -1,7 +1,7 @@
 # PR #23 Build & Test CI 실패 원인과 해결
 
-> 대상 브랜치: `feat/23-apple-signin`  
-> 대상 워크플로우: `.github/workflows/build-and-test.yml`  
+> 대상 브랜치: `feat/23-apple-signin`
+> 대상 워크플로우: `.github/workflows/build-and-test.yml`
 > 관련 커밋: `9e44623`, `25710cb`
 
 ## 요약

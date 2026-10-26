@@ -1,56 +1,9 @@
-fastlane documentation
-----
+# iOS delivery
 
-# Installation
+배포 절차와 후보 검증은 [앱 배포 전략](../docs/engineering/delivery.md)을 따른다.
 
-Make sure you have the latest version of the Xcode command line tools installed:
+- `beta`: 검증된 후보를 빌드하여 TestFlight에 업로드하고 빌드 식별 아티팩트를 남긴다.
+- `release`: 지정된 기존 TestFlight 빌드만 심사 제출하며 자동 공개하지 않는다.
+- `sync_certs`: 별도 승인된 인증서 관리 작업이다. 일반 배포에서 실행하지 않는다.
 
-```sh
-xcode-select --install
-```
-
-For _fastlane_ installation instructions, see [Installing _fastlane_](https://docs.fastlane.tools/#installing-fastlane)
-
-# Available Actions
-
-## iOS
-
-### ios sync_certs
-
-```sh
-[bundle exec] fastlane ios sync_certs
-```
-
-인증서/프로비저닝 프로파일을 API Key로 재발급 (capability 변경 시)
-
-### ios gen_secrets
-
-```sh
-[bundle exec] fastlane ios gen_secrets
-```
-
-Config/Secrets.xcconfig를 ENV(.env / .env.default / GitHub Secrets)에서 생성
-
-### ios beta
-
-```sh
-[bundle exec] fastlane ios beta
-```
-
-Push a new beta build to TestFlight
-
-### ios release
-
-```sh
-[bundle exec] fastlane ios release
-```
-
-Deploy a new version to the App Store
-
-----
-
-This README.md is auto-generated and will be re-generated every time [_fastlane_](https://fastlane.tools) is run.
-
-More information about _fastlane_ can be found on [fastlane.tools](https://fastlane.tools).
-
-The documentation of _fastlane_ can be found on [docs.fastlane.tools](https://docs.fastlane.tools).
+실행은 main의 수동 GitHub Actions를 사용한다. 워크플로 가드를 우회하는 로컬 lane 실행은 표준 배포 경로가 아니다.

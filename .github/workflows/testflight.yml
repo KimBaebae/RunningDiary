@@ -1,19 +1,68 @@
 name: Testflight
 
 on:
-  push:
-    branches:
-      - release/v*
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: '검증한 main 계열의 전체 커밋 SHA'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ios-delivery
+  cancel-in-progress: false
 
 jobs:
   upload-testflight:
     name: CI/CD By Using Fastlane
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
+    timeout-minutes: 60
 
     steps:
       # 1️⃣ 체크아웃
       - name: 1️⃣ Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+
+      - name: Verify candidate
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$CANDIDATE_SHA" origin/main
+          git diff --exit-code "$WORKFLOW_SHA" "$CANDIDATE_SHA" -- .github/workflows/testflight.yml .github/workflows/release.yml fastlane/Fastfile Scripts/verify_delivery.py
+
+      - name: Verify successful candidate CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          mkdir -p .release-evidence
+          gh api "repos/$GH_REPO/actions/workflows/build-and-test.yml/runs?head_sha=$CANDIDATE_SHA&branch=main&per_page=100" > .release-evidence/ci.json
+          python3 Scripts/verify_delivery.py ci --evidence .release-evidence/ci.json --sha "$CANDIDATE_SHA"
+
+
+      - name: Checkout Secrets
+        uses: actions/checkout@v4
+        with:
+          repository: KimBaebae/rundiary-secrets
+          token: ${{ secrets.SECRETS_REPO_TOKEN }}
+          path: .secrets
+
+      - name: Inject Secrets.xcconfig
+        run: |
+          cp .secrets/Secrets.xcconfig Config/Secrets.xcconfig
+          rm -rf .secrets
 
       # 2️⃣ Xcode Version 설정
       - name: 2️⃣ Setting Xcode Version
@@ -64,5 +113,15 @@ jobs:
           APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
           KEYCHAIN_NAME: ${{ secrets.KEYCHAIN_NAME }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-          SECRETS_REPO_TOKEN: ${{ secrets.SECRETS_REPO_TOKEN }}
+          RELEASE_SOURCE_SHA: ${{ inputs.candidate_sha }}
+          RELEASE_RUN_ID: ${{ github.run_id }}
+          RELEASE_RUN_ATTEMPT: ${{ github.run_attempt }}
         run: bundle exec fastlane beta
+
+      - name: Upload build identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-identity
+          retention-days: 90
+          path: fastlane/build-identity.json
+          if-no-files-found: error
