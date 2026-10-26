@@ -1,140 +1,101 @@
 name: Release
 
-
-permissions:
-  contents: write
-
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
-
   workflow_dispatch:
     inputs:
-      skip_deploy:
-        description: 'App Store 배포 건너뛰기 (릴리즈노트만 생성)'
-        required: false
-        type: boolean
-        default: false
+      candidate_sha:
+        description: 'TestFlight에서 검증한 전체 소스 SHA'
+        required: true
+        type: string
+      app_version:
+        description: '검증한 TestFlight 버전 (예: 1.3.0)'
+        required: true
+        type: string
+      build_number:
+        description: '검증한 TestFlight 빌드 번호'
+        required: true
+        type: string
+      testflight_run_id:
+        description: '해당 빌드를 업로드한 성공한 Testflight Actions run ID'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ios-delivery
+  cancel-in-progress: false
 
 jobs:
-  # ========================================
-  # 1️⃣ App Store 배포
-  # ========================================
-  upload-appstore:
-    name: Deploy to App Store
+  submit-appstore:
+    if: github.ref == 'refs/heads/main'
     runs-on: macos-latest
-    # PR 머지 시: release/v* 또는 hotfix/v* 브랜치에서만 실행
-    # 수동 실행 시: skip_deploy가 false일 때만 실행
-    if: |
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.merged == true &&
-       (startsWith(github.event.pull_request.head.ref, 'release/v') ||
-        startsWith(github.event.pull_request.head.ref, 'hotfix/v'))) ||
-      (github.event_name == 'workflow_dispatch' &&
-       github.event.inputs.skip_deploy == 'false')
-
+    timeout-minutes: 30
     steps:
-      - name: 1️⃣ Checkout
-        uses: actions/checkout@v4
-
-      - name: 2️⃣ Setting Xcode Version
-        uses: maxim-lobanov/setup-xcode@v1
+      - uses: actions/checkout@v4
         with:
-          xcode-version: latest-stable
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
 
-      - name: 🧹 Clean DerivedData
-        run: rm -rf ~/Library/Developer/Xcode/DerivedData
-
-      - name: Resolve Dependencies
-        run: xcodebuild -resolvePackageDependencies -project RunDiary.xcodeproj
-
-      - name: Skip Macro Validation
+      - name: Verify candidate
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          WORKFLOW_SHA: ${{ github.sha }}
         run: |
-          defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
-          defaults write com.apple.dt.Xcode IDESkipPackagePluginFingerprintValidation -bool YES
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$CANDIDATE_SHA" origin/main
+          git diff --exit-code "$WORKFLOW_SHA" "$CANDIDATE_SHA" -- .github/workflows/testflight.yml .github/workflows/release.yml fastlane/Fastfile Scripts/verify_delivery.py
 
-      - name: Verify Xcode & Swift
+      - name: Verify successful candidate CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
-          xcodebuild -version
-          swift --version
+          mkdir -p .release-evidence
+          gh api "repos/$GH_REPO/actions/workflows/build-and-test.yml/runs?head_sha=$CANDIDATE_SHA&branch=main&per_page=100" > .release-evidence/ci.json
+          python3 Scripts/verify_delivery.py ci --evidence .release-evidence/ci.json --sha "$CANDIDATE_SHA"
 
-      - name: 3️⃣ Setup Ruby
-        uses: ruby/setup-ruby@v1
+      - name: Verify TestFlight run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TESTFLIGHT_RUN_ID: ${{ inputs.testflight_run_id }}
+        run: |
+          [[ "$TESTFLIGHT_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$TESTFLIGHT_RUN_ID" > .release-evidence/run.json
+          python3 Scripts/verify_delivery.py run --evidence .release-evidence/run.json --run-id "$TESTFLIGHT_RUN_ID"
+
+      - name: Download build identity
+        uses: actions/download-artifact@v4
         with:
-          ruby-version: "3.2"
+          name: ios-build-identity
+          path: .release-evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.testflight_run_id }}
+
+      - name: Verify build identity
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          APP_VERSION: ${{ inputs.app_version }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          TESTFLIGHT_RUN_ID: ${{ inputs.testflight_run_id }}
+        run: |
+          python3 Scripts/verify_delivery.py identity --evidence .release-evidence/build-identity.json --run .release-evidence/run.json --run-id "$TESTFLIGHT_RUN_ID" --sha "$CANDIDATE_SHA" --version "$APP_VERSION" --build "$BUILD_NUMBER"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
           bundler-cache: true
 
-      - name: 4️⃣ Install Dependencies
-        run: bundle install
-
-      - name: 5️⃣ Install SSH Key
-        uses: shimataro/ssh-key-action@v2
-        with:
-          key: ${{ secrets.MATCH_SSH_PRIVATE_KEY }}
-          known_hosts: ${{ secrets.KNOWN_HOSTS }}
-
-      - name: 6️⃣ Run Fastlane
+      - name: Submit the verified existing build
         env:
-          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
-          KEYCHAIN_NAME: ${{ secrets.KEYCHAIN_NAME }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          RELEASE_APP_VERSION: ${{ inputs.app_version }}
+          RELEASE_BUILD_NUMBER: ${{ inputs.build_number }}
         run: bundle exec fastlane release
-
-  # ========================================
-  # 2️⃣ GitHub Release 생성
-  # ========================================
-  create-release:
-    name: Create GitHub Release
-    runs-on: macos-latest
-    needs: [upload-appstore]
-    # upload-appstore가 성공했거나 스킵된 경우 실행
-    if: |
-      always() &&
-      (needs.upload-appstore.result == 'success' || needs.upload-appstore.result == 'skipped') &&
-      ((github.event_name == 'pull_request' &&
-        github.event.pull_request.merged == true &&
-        (startsWith(github.event.pull_request.head.ref, 'release/v') ||
-         startsWith(github.event.pull_request.head.ref, 'hotfix/v'))) ||
-       github.event_name == 'workflow_dispatch')
-
-    steps:
-      - name: 1️⃣ Checkout
-        uses: actions/checkout@v4
-
-      - name: 2️⃣ Get App Version
-        id: get_version
-        run: |
-          echo "📋 Getting app version using xcodebuild..."
-          # RunDiary 타겟의 Release 구성에서 MARKETING_VERSION 추출
-          VERSION=$(xcodebuild -project RunDiary.xcodeproj -target RunDiary -configuration Release -showBuildSettings | grep 'MARKETING_VERSION =' | head -n 1 | awk '{print $3}')
-          
-          if [ -z "$VERSION" ]; then
-            echo "❌ Failed to extract version using xcodebuild. Trying grep fallback..."
-            # Fallback: pbxproj 파일에서 마지막에 등장하는 MARKETING_VERSION (보통 메인 타겟이 파일 뒤쪽에 정의됨)
-            VERSION=$(grep 'MARKETING_VERSION =' RunDiary.xcodeproj/project.pbxproj | tail -n 1 | sed 's/.*= //' | tr -d ';')
-            VERSION=$(echo "$VERSION" | xargs)
-          fi
-          
-          if [ -z "$VERSION" ]; then
-            echo "❌ Failed to extract version."
-            exit 1
-          fi
-
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Final App Version: $VERSION"
-
-      - name: 3️⃣ Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          name: Release v${{ steps.get_version.outputs.VERSION }}
-          body_path: fastlane/metadata/ko/release_notes.txt
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

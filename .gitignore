@@ -36,7 +36,9 @@ fastlane/.env
 
 ### Claude Code ###
 
-.claude/
+.claude/*
+!.claude/skills/
+.claude/settings.local.json
 .serena/
 
 .gemini/
@@ -44,3 +46,10 @@ gha-creds-*.json
 
 # Agent
 .agent/
+
+.handoff/
+fastlane/build-identity.json
+.release-evidence/
+.secrets/
+
+__pycache__/
