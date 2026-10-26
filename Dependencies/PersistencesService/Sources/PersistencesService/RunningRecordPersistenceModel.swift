@@ -9,6 +9,8 @@ import Foundation
 import Models
 import SwiftData
 
+/// SwiftData 영속 전용 스키마 모델. 도메인 계층에는 직접 노출하지 않고
+/// `toDomain()` / `fromDomain(_:)`을 통해서만 도메인 타입 `Diary`와 왕복한다.
 @Model
 public final class RunningRecordPersistenceModel {
     @Attribute(.unique)
@@ -26,6 +28,10 @@ public final class RunningRecordPersistenceModel {
     public var temperature: Double?                     // 온도 (ºC)
     public var humidity: Int?                           // 습도 (%)
     public var windSpeed: Double?                       // 풍속 (m/s)
+    public var skyConditionRaw: String?                 // 유저 선택 - 하늘 상태 (raw)
+    public var windLevelRaw: String?                    // 유저 선택 - 바람 세기 (raw)
+    public var feelsLikeRaw: String?                    // 유저 선택 - 체감 온도 (raw)
+    public var humidityLevelRaw: String?                // 유저 선택 - 습도 체감 (raw)
     public var difficultyLevelRaw: Int?                 // 달리기 난이도 (raw)
     public var routeData: Data?                         // 달리기 경로 데이터
     public var activeEnergyBurned: Double?              // 활동 에너지 소모량 (kcal)
@@ -54,6 +60,10 @@ public final class RunningRecordPersistenceModel {
         temperature: Double? = nil,
         humidity: Int? = nil,
         windSpeed: Double? = nil,
+        skyConditionRaw: String? = nil,
+        windLevelRaw: String? = nil,
+        feelsLikeRaw: String? = nil,
+        humidityLevelRaw: String? = nil,
         difficultyLevelRaw: Int? = nil,
         routeData: Data? = nil,
         activeEnergyBurned: Double? = nil,
@@ -80,6 +90,10 @@ public final class RunningRecordPersistenceModel {
         self.temperature = temperature
         self.humidity = humidity
         self.windSpeed = windSpeed
+        self.skyConditionRaw = skyConditionRaw
+        self.windLevelRaw = windLevelRaw
+        self.feelsLikeRaw = feelsLikeRaw
+        self.humidityLevelRaw = humidityLevelRaw
         self.difficultyLevelRaw = difficultyLevelRaw
         self.routeData = routeData
         self.activeEnergyBurned = activeEnergyBurned
@@ -100,48 +114,75 @@ public final class RunningRecordPersistenceModel {
 // MARK: - Conversion Methods
 
 public extension RunningRecordPersistenceModel {
-    func toDomain() -> Diary {
-        let weather: WeatherData?
-        if let temp = temperature, let hum = humidity, let wind = windSpeed {
-            weather = WeatherData(
-                temperature: temp,
-                humidity: hum,
-                windSpeed: wind
-            )
-        } else {
-            weather = nil
-        }
+    /// WeatherKit 자동 조회 수치(기온/습도/풍속)를 도메인 모델로 변환
+    private var weatherData: WeatherData? {
+        guard
+            let temperature,
+            let humidity,
+            let windSpeed
+        else { return nil }
 
+        return WeatherData(
+            temperature: temperature,
+            humidity: humidity,
+            windSpeed: windSpeed
+        )
+    }
+
+    /// 저장된 신발 문자열을 카탈로그 `Shoe`와 레거시 문자열로 가른다.
+    ///
+    /// resolver가 해석하면 `shoe`, 못 하면 원본을 가공 없이 `legacyShoe`에 담는다.
+    /// 둘은 상호배타적이며, 원본을 그대로 보존해야 저장 왕복이 무손실이고
+    /// `ShoeIdMigrator`가 카탈로그 id를 찾을 매칭 키도 남는다.
+    private func splitShoe(using resolver: (String) -> Shoe?) -> (shoe: Shoe?, legacy: String?) {
+        guard let shoes, !shoes.isEmpty else { return (nil, nil) }
+
+        guard let resolved = resolver(shoes) else { return (nil, shoes) }
+
+        return (resolved, nil)
+    }
+
+    /// - Parameter shoeResolver: 저장된 신발 id를 카탈로그 `Shoe` 엔티티로 복원한다.
+    ///   신발 마스터 데이터는 영속 계층이 아닌 원격/캐시에 있으므로 외부에서 주입받는다.
+    ///   해석에 실패한 값은 `Diary.legacyShoe`로 넘어간다.
+    func toDomain(shoeResolver: (String) -> Shoe? = { _ in nil }) -> Diary {
         // Convert raw values to enums
         let painAreas = PainAreasMapper.decode(painAreasRawData)
         let runningStyle = runningStyleRaw.flatMap { RunninStyle(rawValue: $0) }
         let difficultyLevel = difficultyLevelRaw.flatMap { DifficultyLevel(rawValue: $0) }
+        let shoe = splitShoe(using: shoeResolver)
 
         return Diary(
             id: id,
             workout: HealthKitWorkout(
                 distance: distance,
                 duration: duration,
-                averagePace: averagePace,
+                // 저장된 표시 문자열을 역파싱하지 않고 duration·distance로 재계산한다.
+                // 두 값 모두 영속되므로 손실 없이 복원되며 원본 대비 오차는 최대 ±1초다.
+                averagePaceSecondsPerKm: PaceMapper.secondsPerKm(
+                    fromDurationSec: duration,
+                    distanceKm: distance
+                ),
                 averageHeartRate: averageHeartRate,
                 averageCadence: averageCadence,
                 activeEnergyBurned: activeEnergyBurned ?? 0,
-                runningVerticalOscillation: runningVerticalOscillation ?? 0,
-                runningGroundContactTime: runningGroundContactTime ?? 0,
-                walkingStepLength: walkingStepLength ?? 0,
+                averageVerticalOscillation: runningVerticalOscillation ?? 0,
+                averageGroundContactTime: runningGroundContactTime ?? 0,
+                averageStepLength: walkingStepLength ?? 0,
                 restingHeartRate: restingHeartRate ?? 0,
-                runningPower: runningPower ?? 0,
-                runningStrideLength: runningStrideLength ?? 0,
+                averagePower: runningPower ?? 0,
+                averageStrideLength: runningStrideLength ?? 0,
                 heartRateRecoveryOneMinute: heartRateRecoveryOneMinute ?? 0,
-                routeData: routeData,
+                route: RouteDataMapper.decode(routeData),
                 startDate: startTime,
                 endDate: endTime
             ),
             painAreas: painAreas,
             runningStyle: runningStyle,
             memo: memo,
-            shoes: shoes,
-            weather: weather,
+            shoe: shoe.shoe,
+            legacyShoe: shoe.legacy,
+            weather: weatherData,
             difficultyLevel: difficultyLevel
         )
     }
@@ -152,25 +193,25 @@ public extension RunningRecordPersistenceModel {
             date: record.workout.yearMonthDay.toDate(),
             distance: record.workout.distance,
             duration: record.workout.duration,
-            averagePace: record.workout.averagePace,
+            averagePace: record.workout.formattedAveragePace,
             averageHeartRate: record.workout.averageHeartRate,
             averageCadence: record.workout.averageCadence,
             painAreasRaw: record.painAreas.map { $0.rawValue },
             runningStyleRaw: record.runningStyle?.rawValue,
             memo: record.memo,
-            shoes: record.shoes,
+            shoes: record.shoe?.id ?? record.legacyShoe,
             temperature: record.weather?.temperature,
             humidity: record.weather?.humidity,
             windSpeed: record.weather?.windSpeed,
             difficultyLevelRaw: record.difficultyLevel?.rawValue,
-            routeData: record.workout.routeData,
+            routeData: RouteDataMapper.encode(record.workout.route),
             activeEnergyBurned: record.workout.activeEnergyBurned,
-            runningVerticalOscillation: record.workout.runningVerticalOscillation,
-            runningGroundContactTime: record.workout.runningGroundContactTime,
-            walkingStepLength: record.workout.walkingStepLength,
+            runningVerticalOscillation: record.workout.averageVerticalOscillation,
+            runningGroundContactTime: record.workout.averageGroundContactTime,
+            walkingStepLength: record.workout.averageStepLength,
             restingHeartRate: record.workout.restingHeartRate,
-            runningPower: record.workout.runningPower,
-            runningStrideLength: record.workout.runningStrideLength,
+            runningPower: record.workout.averagePower,
+            runningStrideLength: record.workout.averageStrideLength,
             heartRateRecoveryOneMinute: record.workout.heartRateRecoveryOneMinute,
             startTime: record.workout.startTime,
             endTime: record.workout.endTime
@@ -203,10 +244,14 @@ public extension RunningRecordPersistenceModel {
             painAreasRaw: ["무릎", "종아리"],
             runningStyleRaw: "Midfoot",
             memo: "상쾌한 아침 러닝이었음. 후반부에 약간 무릎 통증.",
-            shoes: "Nike Zoom Fly 5",
+            shoes: "nike-zoom-fly-5",
             temperature: 18.5,
             humidity: 62,
             windSpeed: 3.2,
+            skyConditionRaw: "sunny",
+            windLevelRaw: "moderate",
+            feelsLikeRaw: "neutral",
+            humidityLevelRaw: "humid",
             difficultyLevelRaw: 4,
             routeData: nil,
             activeEnergyBurned: 450.0,
@@ -231,7 +276,7 @@ public extension RunningRecordPersistenceModel {
                 painAreasRaw: ["발목"],
                 runningStyleRaw: "Forefoot",
                 memo: "기온이 약간 높았지만 페이스 유지에 성공.",
-                shoes: "ASICS Metaspeed Sky",
+                shoes: "asics-metaspeed-sky",
                 temperature: 21.0,
                 humidity: 58,
                 windSpeed: 2.1,
@@ -242,7 +287,8 @@ public extension RunningRecordPersistenceModel {
                 runningGroundContactTime: 235.0,
                 walkingStepLength: 1.0,
                 startTime: date(year: 2025, month: 10, day: 15),
-                endTime: Calendar.current.date(byAdding: .second, value: 1780, to: date(year: 2025, month: 10, day: 15))!
+                endTime: Calendar.current.date(
+                    byAdding: .second, value: 1780, to: date(year: 2025, month: 10, day: 15))!
             ),
             RunningRecordPersistenceModel(
                 id: UUID(),
@@ -255,7 +301,7 @@ public extension RunningRecordPersistenceModel {
                 painAreasRaw: [],
                 runningStyleRaw: "Midfoot",
                 memo: "페이스 좋았음. 마지막 1km에서 스퍼트.",
-                shoes: "Nike Pegasus 40",
+                shoes: "nike-pegasus-40",
                 temperature: 17.2,
                 humidity: 65,
                 windSpeed: 3.4,
@@ -266,7 +312,8 @@ public extension RunningRecordPersistenceModel {
                 runningGroundContactTime: 230.0,
                 walkingStepLength: 1.2,
                 startTime: date(year: 2025, month: 10, day: 18),
-                endTime: Calendar.current.date(byAdding: .second, value: 2600, to: date(year: 2025, month: 10, day: 18))!
+                endTime: Calendar.current.date(
+                    byAdding: .second, value: 2600, to: date(year: 2025, month: 10, day: 18))!
             ),
             RunningRecordPersistenceModel(
                 id: UUID(),
@@ -278,7 +325,7 @@ public extension RunningRecordPersistenceModel {
                 painAreasRaw: ["허벅지"],
                 runningStyleRaw: "Rearfoot",
                 memo: "전날 술 때문에 컨디션이 안 좋았음.",
-                shoes: "Adidas Adizero Boston 12",
+                shoes: "adidas-adizero-boston-12",
                 temperature: 19.5,
                 humidity: 70,
                 windSpeed: 2.8,
@@ -314,7 +361,7 @@ public extension RunningRecordPersistenceModel {
                 walkingStepLength: nil,
                 startTime: date(year: 2025, month: 11, day: 1),
                 endTime: Calendar.current.date(byAdding: .second, value: 3600, to: date(year: 2025, month: 11, day: 1))!
-            )
+            ),
         ]
     }
 }

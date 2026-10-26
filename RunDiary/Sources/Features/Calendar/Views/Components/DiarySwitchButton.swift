@@ -30,8 +30,5 @@ struct DiarySwitchButton: View {
 }
 
 #Preview {
-    DiarySwitchButton(
-        selectedDate: YearMonthDay(year: 2025, month: 11, day: 9),
-        onTap: {}
-    )
+    DiarySwitchButton(selectedDate: YearMonthDay(year: 2025, month: 11, day: 9)) {}
 }

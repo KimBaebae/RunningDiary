@@ -15,7 +15,7 @@ struct HealthKitWorkoutCard: View {
 
     private let gridColumns = [
         GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
+        GridItem(.flexible(), spacing: 16),
     ]
 
     init(
@@ -52,11 +52,7 @@ struct HealthKitWorkoutCard: View {
                 )
                 RecordVerticalRow(
                     title: L10n.recordFieldPace.value,
-                    value: workout.averagePace
-                )
-                RecordVerticalRow(
-                    title: L10n.recordFieldHeartRate.value,
-                    value: "\(workout.averageHeartRate) \(L10n.unitBpm.value)"
+                    value: workout.formattedAveragePace
                 )
                 RecordVerticalRow(
                     title: L10n.recordFieldCadence.value,
@@ -121,27 +117,7 @@ private struct PlaceholderItem: View {
 #Preview {
     VStack {
         Spacer()
-        HealthKitWorkoutCard(
-            record: HealthKitWorkout(
-                distance: 5.23,
-                duration: 1935,
-                averagePace: "6'10\"",
-                averageHeartRate: 156,
-                averageCadence: 178,
-                activeEnergyBurned: 320.5,
-                runningVerticalOscillation: 8.2,
-                runningGroundContactTime: 245,
-                walkingStepLength: 1.1,
-                restingHeartRate: 58,
-                runningPower: 280,
-                runningStrideLength: 1.2,
-                heartRateRecoveryOneMinute: 22,
-                routeData: nil,
-                startDate: Date(),
-                endDate: Date().addingTimeInterval(1935)
-            ),
-            onCreate: {}
-        )
+        HealthKitWorkoutCard(record: .preview) {}
         .padding()
         Spacer()
     }

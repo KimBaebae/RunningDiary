@@ -14,3 +14,9 @@ Codex와 Claude Code 모두 이 문서와 `CONTRIBUTING.md`를 따른다.
 - GitHub 쓰기는 개인 계정 `khyeji98`을 검증한 뒤 수행한다. Chrome은 Hyeji 프로필을 사용한다.
 - 실제 PR/push/CI 재실행 뒤 설치된 `runningdiary-ci-watch` 스킬이 있으면 적용한다. 배포는 별도 승인된 수동 실행만 감시하며 자동 dispatch하지 않는다. 로컬 준비만으로 감시를 켜지 않는다.
 - 서버는 별도 저장소·담당자 소관이다. 필요한 API 변경 PR과 리뷰 요청까지만 수행하며 앱 규칙으로 서버 브랜치·배포 정책을 바꾸지 않는다.
+
+## 기존 상세 규칙
+
+- `.claude/rules/tca-convention.md`, `testing-convention.md`, `preview-convention.md`, `commit-convention.md`는 파일 경로명과 관계없이 Codex와 Claude Code 모두 적용한다.
+- 기존 테스트 명세 재작성은 `.claude/skills/feature-respec-tc/SKILL.md`가 명시적으로 요청된 경우에만 적용한다. 일반 개발에서 테스트를 일괄 주석 처리하지 않는다.
+- 문자열 생성은 `.claude/skills/refresh-strings/SKILL.md`를 참고한다.

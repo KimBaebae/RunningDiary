@@ -130,7 +130,7 @@ RunDiary
 
 ### 개발 도구
 - **Swift Testing**: 테스트 프레임워크
-- **SwiftLint**: 코드 스타일 검사
+- **SwiftLint**: 코드 스타일 검사 (`brew install swiftlint` 필요, 검사는 `./Scripts/swiftlint.sh`)
 - **GitHub Actions**: CI/CD
 - **HorizonCalendar**: 캘린더 UI
 

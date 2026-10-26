@@ -1,5 +1,8 @@
 ### Xcode ###
 
+## 오케스트레이션 스펙 (휘발성 조율 산출물)
+.claude/specs/
+
 ## Xcode project user settings
 xcuserdata/
 *.xcuserstate
@@ -16,6 +19,9 @@ DerivedData/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj
 !*.xcodeproj/project.xcworkspace/
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/xcshareddata/xcschemes/
+!*.xcodeproj/xcshareddata/xcschemes/*.xcscheme
 /*.gcno
 
 ### Swift Package Manager ###
@@ -23,6 +29,9 @@ DerivedData/
 .build/
 .swiftpm/
 Packages/
+
+# 로컬 패키지의 Package.resolved는 비커밋(앱 레벨 resolved가 버전 고정 담당)
+Dependencies/*/Package.resolved
 
 ### App packaging ###
 
@@ -34,11 +43,17 @@ Packages/
 
 fastlane/.env
 
+### Secrets / Config ###
+
+# 실제 값 파일은 비커밋. 템플릿(*.template)과 fastlane/.env.default만 커밋한다.
+Config/Secrets.xcconfig
+
 ### Claude Code ###
 
-.claude/*
-!.claude/skills/
 .claude/settings.local.json
+
+.DS_Store
+
 .serena/
 
 .gemini/
@@ -46,10 +61,14 @@ gha-creds-*.json
 
 # Agent
 .agent/
-
 .handoff/
+
+### Data Analysis ###
+
+.superset/
+
+# Manual delivery evidence and transient checks
 fastlane/build-identity.json
 .release-evidence/
 .secrets/
-
 __pycache__/

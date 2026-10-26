@@ -58,7 +58,6 @@ private struct TopSection: View {
             .fixedSize(horizontal: false, vertical: true)
             .padding(.bottom, 8)
 
-
         }
     }
 }
@@ -68,12 +67,13 @@ private struct ExpandedContentView: View {
 
     private let gridColumns = [
         GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
+        GridItem(.flexible(), spacing: 16),
     ]
 
     private var hasEnvironmentData: Bool {
         record.weather != nil ||
-        record.shoes != nil ||
+        record.shoe != nil ||
+        record.legacyShoe != nil ||
         record.runningStyle != nil ||
         record.difficultyLevel != nil
     }
@@ -87,7 +87,7 @@ private struct ExpandedContentView: View {
                 LazyVGrid(columns: gridColumns, alignment: .leading, spacing: 12) {
                     RecordVerticalRow(
                         title: L10n.recordFieldPace.value,
-                        value: record.workout.averagePace
+                        value: record.workout.formattedAveragePace
                     )
                     RecordVerticalRow(
                         title: L10n.recordFieldHeartRate.value,
@@ -105,24 +105,24 @@ private struct ExpandedContentView: View {
                         )
                     }
 
-                    if record.workout.runningPower > 0 {
+                    if record.workout.averagePower > 0 {
                         RecordVerticalRow(
                             title: L10n.recordFieldRunningPower.value,
-                            value: "\(Int(record.workout.runningPower))W"
+                            value: "\(Int(record.workout.averagePower))W"
                         )
                     }
 
-                    if record.workout.runningVerticalOscillation > 0 {
+                    if record.workout.averageVerticalOscillation > 0 {
                         RecordVerticalRow(
                             title: L10n.recordFieldVerticalOscillation.value,
-                            value: "\(String(format: "%.1f", record.workout.runningVerticalOscillation)) cm"
+                            value: "\(String(format: "%.1f", record.workout.averageVerticalOscillation)) cm"
                         )
                     }
 
-                    if record.workout.runningGroundContactTime > 0 {
+                    if record.workout.averageGroundContactTime > 0 {
                         RecordVerticalRow(
                             title: L10n.recordFieldGroundContactTime.value,
-                            value: "\(Int(record.workout.runningGroundContactTime)) ms"
+                            value: "\(Int(record.workout.averageGroundContactTime)) ms"
                         )
                     }
                 }
@@ -170,15 +170,13 @@ private struct ExpandedContentView: View {
             }
 
             // 6. Route Map Section (경로 데이터가 있을 때만)
-            if let routeData = record.workout.routeData,
-               let locations = try? JSONDecoder().decode([Location].self, from: routeData),
-               !locations.isEmpty {
+            if let route = record.workout.route, !route.isEmpty {
                 Divider()
                     .padding(.vertical, 8)
 
                 RouteMapSection(
                     weather: record.weather,
-                    locations: locations
+                    route: route
                 )
             }
         }
@@ -189,10 +187,10 @@ private struct ExpandedContentView: View {
 
 private struct RouteMapSection: View {
     let weather: WeatherData?
-    let locations: [Location]
+    let route: [RoutePoint]
 
     private var coordinates: [CLLocationCoordinate2D] {
-        locations.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+        route.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
     }
 
     var body: some View {
@@ -220,13 +218,22 @@ private struct EnvironmentSentenceView: View {
     let record: Diary
 
     @Environment(\.locale) private var locale
+    @State private var resolvedShoe: Shoe?
 
     private var isEnglish: Bool {
         locale.language.languageCode?.identifier == "en"
     }
 
     private var shoesName: String? {
-        record.shoes.flatMap { ShoeStorage.search(id: $0)?.name }
+        if let resolved = (resolvedShoe ?? record.shoe)?.displayName { return resolved }
+
+        // 카탈로그로 해석되지 않은 기록은 저장 원본 문자열을 사람이 읽을 수 있게 풀어 보여준다.
+        return record.legacyShoe.flatMap(LegacyShoeMapper.decodeName(from:))
+    }
+
+    /// 카탈로그 재조회에 쓸 저장 원본 문자열.
+    private var storedShoeId: String? {
+        record.shoe?.id ?? record.legacyShoe
     }
 
     private var styleName: String? {
@@ -252,6 +259,13 @@ private struct EnvironmentSentenceView: View {
             }
         }
         .font(.body)
+        // 기록 조회 시점에 마스터 목록이 없었다면 신발이 legacyShoe로 떨어진다.
+        // 목록이 뒤늦게 로드된 경우를 위해 한 번 더 조회한다.
+        .task(id: storedShoeId) {
+            guard let id = storedShoeId else { return }
+
+            resolvedShoe = await ShoeCache.shared.shoe(id: id)
+        }
     }
 }
 
@@ -374,17 +388,16 @@ struct SectionHeader: View {
 
 #Preview {
     // 샘플 경로 데이터 (서울 올림픽공원 주변)
-    let sampleLocations = [
-        Location(latitude: 37.5209, longitude: 127.1230),
-        Location(latitude: 37.5215, longitude: 127.1240),
-        Location(latitude: 37.5220, longitude: 127.1255),
-        Location(latitude: 37.5225, longitude: 127.1270),
-        Location(latitude: 37.5218, longitude: 127.1285),
-        Location(latitude: 37.5210, longitude: 127.1275),
-        Location(latitude: 37.5205, longitude: 127.1260),
-        Location(latitude: 37.5209, longitude: 127.1230)
+    let sampleRoute = [
+        RoutePoint(latitude: 37.5209, longitude: 127.1230, altitude: 24.0, elapsedSec: 0),
+        RoutePoint(latitude: 37.5215, longitude: 127.1240, altitude: 25.2, elapsedSec: 240),
+        RoutePoint(latitude: 37.5220, longitude: 127.1255, altitude: 27.4, elapsedSec: 480),
+        RoutePoint(latitude: 37.5225, longitude: 127.1270, altitude: 29.1, elapsedSec: 720),
+        RoutePoint(latitude: 37.5218, longitude: 127.1285, altitude: 28.0, elapsedSec: 960),
+        RoutePoint(latitude: 37.5210, longitude: 127.1275, altitude: 26.3, elapsedSec: 1_200),
+        RoutePoint(latitude: 37.5205, longitude: 127.1260, altitude: 25.0, elapsedSec: 1_440),
+        RoutePoint(latitude: 37.5209, longitude: 127.1230, altitude: 24.2, elapsedSec: 1_935),
     ]
-    let routeData = try? JSONEncoder().encode(sampleLocations)
 
     return ScrollView(.vertical) {
         VStack {
@@ -393,30 +406,31 @@ struct SectionHeader: View {
                     workout: HealthKitWorkout(
                         distance: 5.23,
                         duration: 1935,
-                        averagePace: "6'10\"",
+                        averagePaceSecondsPerKm: 370,
                         averageHeartRate: 156,
                         averageCadence: 178,
                         activeEnergyBurned: 450.0,
-                        runningVerticalOscillation: 8.2,
-                        runningGroundContactTime: 240.0,
-                        walkingStepLength: 1.1,
+                        totalEnergyBurned: 528.0,
+                        elevationAscended: 5.5,
+                        averageVerticalOscillation: 8.2,
+                        averageGroundContactTime: 240.0,
+                        averageStepLength: 1.1,
                         restingHeartRate: 55.0,
-                        runningPower: 280.0,
-                        runningStrideLength: 1.25,
+                        averagePower: 280.0,
+                        averageStrideLength: 1.25,
                         heartRateRecoveryOneMinute: 25.0,
-                        routeData: routeData,
+                        route: sampleRoute,
                         startDate: Date(),
                         endDate: Date().addingTimeInterval(1935)
                     ),
                     painAreas: [.knee, .shin],
                     runningStyle: .midfoot,
                     memo: "Good run!",
-                    shoes: "nike-alphafly-3",
+                    shoe: .preview,
                     weather: WeatherData(temperature: 18, humidity: 60, windSpeed: 32),
                     difficultyLevel: .hard
-                ),
-                onEdit: {}
-            )
+                )
+            ) {}
             .padding()
         }
     }

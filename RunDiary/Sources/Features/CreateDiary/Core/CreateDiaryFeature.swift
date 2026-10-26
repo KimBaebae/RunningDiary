@@ -1,0 +1,282 @@
+//
+//  CreateDiaryFeature.swift
+//  RunDiary
+//
+//  Created by Claude on 10/19/25.
+//
+
+import ComposableArchitecture
+import CoreLocation
+import Foundation
+import Models
+import PersistencesService
+
+@Reducer
+struct CreateDiaryFeature {
+    enum Step: Int, CaseIterable, Equatable {
+        case fitness
+        case shoes
+        case runningStyle
+        case painAreas
+        case difficulty
+        case memo
+
+        var isFirst: Bool { self == Self.allCases.first }
+        var isLast: Bool { self == Self.allCases.last }
+
+        var next: Step? {
+            guard let index = Self.allCases.firstIndex(of: self) else { return nil }
+            let nextIndex = Self.allCases.index(after: index)
+            return nextIndex < Self.allCases.endIndex ? Self.allCases[nextIndex] : nil
+        }
+
+        var previous: Step? {
+            guard let index = Self.allCases.firstIndex(of: self) else { return nil }
+            let previousIndex = Self.allCases.index(before: index)
+            return previousIndex >= Self.allCases.startIndex ? Self.allCases[previousIndex] : nil
+        }
+    }
+
+    @ObservableState
+    struct State: Equatable {
+        var existingRecord: Diary?
+        var healthKitWorkout: HealthKitWorkout
+
+        var currentStep: Step = .fitness
+
+        var selectedPainAreas: Set<PainArea>
+        var selectedRunningStyle: RunninStyle?
+        var selectedShoe: Shoe?
+        var selectedDifficultyLevel: DifficultyLevel?
+        var memo: String
+
+        var shoes: [Shoe] = []
+        var isShoesLoading: Bool = false
+
+        var weather: WeatherData?
+
+        var isLoading: Bool = false
+        var errorMassage: String?
+
+        var isFormValid: Bool {
+            guard selectedShoe != nil else { return false }
+            guard selectedRunningStyle != nil else { return false }
+            guard selectedDifficultyLevel != nil else { return false }
+            return true
+        }
+
+        init(
+            existingRecord: Diary? = nil,
+            healthKitWorkout: HealthKitWorkout
+        ) {
+            self.existingRecord = existingRecord
+            self.healthKitWorkout = healthKitWorkout
+            self.selectedPainAreas = Set(existingRecord?.painAreas ?? [])
+            self.selectedRunningStyle = existingRecord?.runningStyle
+            self.selectedShoe = existingRecord?.shoe
+            self.selectedDifficultyLevel = existingRecord?.difficultyLevel ?? .medium
+            self.memo = existingRecord?.memo ?? ""
+            self.weather = existingRecord?.weather
+        }
+    }
+
+    enum Action {
+        case onAppear
+        case nextStepTapped
+        case previousStepTapped
+        case updateSelectedPainAreas(Set<PainArea>)
+        case updateSelectedRunningStyle(RunninStyle?)
+        case updateSelectedShoe(Shoe?)
+        case shoesLoaded([Shoe])
+        case shoesLoadFailed
+        case updateSelectedDifficultyLevel(DifficultyLevel?)
+        case updateMemo(String)
+        case weatherFetched(WeatherData?)
+        case saveRecord
+        case recordSaved
+        case recordSaveFailed(String)
+    }
+
+    @Dependency(\.runningRecordClient) var runningRecordClient
+    @Dependency(\.weatherClient) var weatherClient
+    @Dependency(\.shoeClient) var shoeClient
+    @Dependency(\.dismiss) var dismiss
+
+    var body: some Reducer<State, Action> {
+        Reduce { state, action in
+            switch action {
+            case .onAppear:
+                let shoesEffect = loadShoesEffect(state: &state)
+
+                // 기존 기록 수정은 이미 전체 데이터를 보유하므로 날씨 재조회가 불필요하다.
+                if state.existingRecord != nil {
+                    return shoesEffect
+                }
+
+                // 신규 기록은 목록에서 전체 데이터를 그대로 받으므로, 경로에서 위치를 추출해 날씨만 조회한다.
+                let workout = state.healthKitWorkout
+                let location = extractLocationFromRoute(workout.route)
+
+                guard let location else { return shoesEffect }
+
+                let middleTime = workoutMiddleTime(workout)
+                let weatherEffect: Effect<Action> = .run { send in
+                    do {
+                        let weather = try await weatherClient.fetchWeather(middleTime, location)
+                        await send(.weatherFetched(weather))
+                    } catch {
+                        AppLogger.createDiary.warning("날씨 조회 실패: \(error.localizedDescription)")
+                        await send(.weatherFetched(nil))
+                    }
+                }
+
+                return .merge(shoesEffect, weatherEffect)
+
+            case .nextStepTapped:
+                if let next = state.currentStep.next {
+                    state.currentStep = next
+                }
+                return .none
+
+            case .previousStepTapped:
+                if let previous = state.currentStep.previous {
+                    state.currentStep = previous
+                }
+                return .none
+
+            case .updateSelectedPainAreas(let areas):
+                state.selectedPainAreas = areas
+                return .none
+
+            case .updateSelectedRunningStyle(let style):
+                state.selectedRunningStyle = style
+                return .none
+
+            case .updateSelectedShoe(let shoe):
+                state.selectedShoe = shoe
+                return .none
+
+            case .shoesLoaded(let shoes):
+                state.shoes = shoes
+                state.isShoesLoading = false
+                // 저장된 신발은 마스터 목록 없이 복원되면 legacyShoe로 떨어진다.
+                // 목록이 도착하면 정식 항목으로 교체하고, 목록에 없으면 선택을 비운다.
+                state.selectedShoe = state.selectedShoe
+                    .flatMap { selected in shoes.first { $0.id == selected.id } }
+                    ?? state.existingRecord?.legacyShoe
+                        .flatMap { ShoeIdMigrator.resolve(legacyShoe: $0, in: shoes) }
+                return .none
+
+            case .shoesLoadFailed:
+                state.isShoesLoading = false
+                return .none
+
+            case .updateSelectedDifficultyLevel(let level):
+                state.selectedDifficultyLevel = level
+                return .none
+
+            case .updateMemo(let text):
+                state.memo = text
+                return .none
+
+            case .weatherFetched(let weather):
+                state.weather = weather
+                return .none
+
+            case .saveRecord:
+                state.isLoading = true
+                state.errorMassage = nil
+
+                let id = state.existingRecord?.id ?? UUID()
+                let workout = state.healthKitWorkout
+                let painAreas = state.selectedPainAreas
+                let runningStyle = state.selectedRunningStyle
+                let memo = state.memo
+                let shoe = state.selectedShoe
+                let difficultyLevel = state.selectedDifficultyLevel
+                let weather = state.weather
+                let isNewRecord = state.existingRecord == nil
+
+                return .run { send in
+                    do {
+                        let record = Diary(
+                            id: id,
+                            workout: workout,
+                            painAreas: Array(painAreas),
+                            runningStyle: runningStyle,
+                            memo: memo.isEmpty ? nil : memo,
+                            shoe: shoe,
+                            weather: weather,
+                            difficultyLevel: difficultyLevel
+                        )
+
+                        if isNewRecord {
+                            try await runningRecordClient.saveRecord(record)
+                        } else {
+                            try await runningRecordClient.updateRecord(record)
+                        }
+
+                        await send(.recordSaved)
+                    } catch {
+                        if let runningRecordError = error as? PersistencesError {
+                            await send(.recordSaveFailed(runningRecordError.errorDescription ?? runningRecordError.localizedDescription))
+                        } else {
+                            await send(.recordSaveFailed(error.localizedDescription))
+                        }
+                    }
+                }
+
+            case .recordSaved:
+                state.isLoading = false
+                return .run { _ in
+                    await dismiss()
+                }
+
+            case .recordSaveFailed(let errorMassage):
+                state.isLoading = false
+                state.errorMassage = errorMassage
+                return .none
+            }
+        }
+    }
+
+    /// 경로의 시작·종료 지점 중간 좌표를 날씨 조회 위치로 사용한다.
+    private func extractLocationFromRoute(_ route: [RoutePoint]?) -> CLLocationCoordinate2D? {
+        guard let first = route?.first, let last = route?.last else { return nil }
+
+        let midLatitude = (first.latitude + last.latitude) / 2.0
+        let midLongitude = (first.longitude + last.longitude) / 2.0
+
+        return CLLocationCoordinate2D(latitude: midLatitude, longitude: midLongitude)
+    }
+
+    private func workoutMiddleTime(_ workout: HealthKitWorkout) -> Date {
+        let startInterval = workout.startTime.timeIntervalSince1970
+        let endInterval = workout.endTime.timeIntervalSince1970
+        let middleInterval = (startInterval + endInterval) / 2.0
+        return Date(timeIntervalSince1970: middleInterval)
+    }
+
+    private func loadShoesEffect(state: inout State) -> Effect<Action> {
+        if !state.shoes.isEmpty { return .none }
+
+        state.isShoesLoading = true
+
+        return .run { [shoeClient] send in
+            if await ShoeCache.shared.isLoaded {
+                let shoes = await ShoeCache.shared.allShoes()
+                await send(.shoesLoaded(shoes))
+                return
+            }
+
+            do {
+                let shoes = try await shoeClient.fetchAllShoes()
+                await ShoeCache.shared.store(shoes)
+                await send(.shoesLoaded(shoes))
+            } catch {
+                AppLogger.createDiary.warning("신발 조회 실패: \(error.localizedDescription)")
+                await send(.shoesLoadFailed)
+            }
+        }
+    }
+}
