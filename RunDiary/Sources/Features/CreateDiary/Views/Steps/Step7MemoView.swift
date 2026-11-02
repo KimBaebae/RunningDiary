@@ -20,6 +20,7 @@ struct Step7MemoView: View {
                         set: { store.send(.updateMemo($0)) }
                     )
                 )
+                .accessibilityIdentifier("diary.memo")
                 .frame(minHeight: 240)
                 .padding(10)
                 .background(Color(.systemBackground))

@@ -23,6 +23,7 @@ struct Step6DifficultyView: View {
                     store.send(.updateSelectedDifficultyLevel($0))
                 }
                 .frame(height: 160)
+                .accessibilityIdentifier("diary.difficulty")
 
                 if let level = store.selectedDifficultyLevel {
                     Text(level.displayName)

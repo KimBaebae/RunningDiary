@@ -24,3 +24,4 @@
 ## 기존 기록 서버 전송
 
 - [이슈 #28: 기존 기록 서버 전송 명세](issue-28/legacy-record-transfer.md)
+- [이슈 #28: 화면 흐름과 XCUITest](issue-28/ui-screen-flow.md)

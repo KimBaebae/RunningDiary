@@ -22,7 +22,9 @@ struct LivePersistencesRepositoryTests {
         let schema = Schema([RunningRecordPersistenceModel.self])
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(for: schema, configurations: [config])
-        let context = container.mainContext
+        // mainContext는 컨테이너가 소유하므로 지역 컨테이너가 해제되면 사용할 수 없다.
+        // 독립 컨텍스트가 테스트 저장소와 함께 컨테이너 수명을 유지하게 한다.
+        let context = ModelContext(container)
         return LivePersistencesRepository(modelContext: context)
     }
 

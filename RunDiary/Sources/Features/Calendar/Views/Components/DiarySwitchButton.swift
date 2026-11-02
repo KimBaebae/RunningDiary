@@ -25,6 +25,7 @@ struct DiarySwitchButton: View {
             }
             .fixedSize(horizontal: false, vertical: true)
         }
+        .accessibilityIdentifier("calendar.returnToDiary")
         .padding(.horizontal, 18)
     }
 }
