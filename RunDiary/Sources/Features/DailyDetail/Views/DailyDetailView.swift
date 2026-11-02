@@ -89,6 +89,8 @@ struct YearAndMonthSection: View {
                 .foregroundStyle(.blue700)
             }
 
+            .accessibilityIdentifier("daily.calendar")
+
             Spacer()
 
             Button {
@@ -99,6 +101,7 @@ struct YearAndMonthSection: View {
                     .font(.title3)
                     .padding(.trailing, 14)
             }
+            .accessibilityIdentifier("daily.settings")
         }
         .frame(height: 48)
     }

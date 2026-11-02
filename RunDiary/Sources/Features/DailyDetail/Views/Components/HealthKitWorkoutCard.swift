@@ -77,6 +77,7 @@ struct HealthKitWorkoutCard: View {
                 }
                 .fixedSize(horizontal: false, vertical: true)
             }
+            .accessibilityIdentifier("record.create")
             .frame(maxWidth: .infinity)
         }
         .padding(20)

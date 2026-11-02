@@ -149,6 +149,7 @@ private struct ShoeRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("diary.shoe.\(shoe.id)")
     }
 }
 

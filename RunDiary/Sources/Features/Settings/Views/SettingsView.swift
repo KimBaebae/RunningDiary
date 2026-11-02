@@ -21,6 +21,7 @@ struct SettingsView: View {
                 Button(store.isPreparingMigration ? "기록 확인 중…" : "기존 기록 서버로 보내기") {
                     store.send(.migrationTapped)
                 }
+                .accessibilityIdentifier("settings.migrate")
                 .disabled(store.isPreparingMigration || store.isMigrating)
                 if store.isMigrating {
                     ProgressView(
@@ -29,6 +30,7 @@ struct SettingsView: View {
                     )
                     Text("\(store.migrationProgress.completed) / \(store.migrationProgress.total)개 확인 완료")
                     Button("전송 중단", role: .cancel) { store.send(.migrationCancelled) }
+                        .accessibilityIdentifier("migration.cancel")
                 }
                 if let message = store.migrationMessage {
                     Text(message).font(.footnote)
