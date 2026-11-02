@@ -29,10 +29,14 @@ struct RunDiaryApp: App {
         #endif
         let container: ModelContainer
         if isUITesting {
-            container = try! ModelContainer(
-                for: RunningRecordPersistenceModel.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-            )
+            do {
+                container = try ModelContainer(
+                    for: RunningRecordPersistenceModel.self,
+                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+                )
+            } catch {
+                fatalError("UI 테스트 메모리 저장소 fixture 초기화 실패: \(error)")
+            }
         } else {
             container = DataModel.shared.container
         }
@@ -76,7 +80,13 @@ struct RunDiaryApp: App {
                     reviewSummary: nil, pros: [], cons: [], description: nil
                 )] }
                 let tokenStorage = InMemorySecureStorage()
-                if !loggedOut { try! tokenStorage.save("ui-test-access-token", for: .accessToken) }
+                if !loggedOut {
+                    do {
+                        try tokenStorage.save("ui-test-access-token", for: .accessToken)
+                    } catch {
+                        fatalError("UI 테스트 인증 fixture 초기화 실패: \(error)")
+                    }
+                }
                 $0.tokenClient = .live(storage: tokenStorage)
                 $0.healthKitClient = HealthKitClient { from, to in
                     arguments.contains("--ui-record") && workout.startTime >= from && workout.startTime <= to
