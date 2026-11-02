@@ -24,6 +24,10 @@ struct RunDiaryApp: App {
             $0.healthKitClient = .liveValue
             $0.authClient = .liveValue
             $0.tokenClient = .liveValue
+            $0.legacyMigrationClient = .live(
+                modelContext: DataModel.shared.container.mainContext,
+                tokenClient: .liveValue
+            )
         }
     }
 

@@ -20,3 +20,7 @@
 
 네이밍/생성 규칙의 단일 진실 소스는 `feature-respec-tc` 스킬(`.claude/skills/feature-respec-tc/SKILL.md`)이다.
 관련 컨벤션: `.claude/rules/testing-convention.md`, `.claude/rules/phases/`(phase-a/b/c).
+
+## 기존 기록 서버 전송
+
+- [이슈 #28: 기존 기록 서버 전송 명세](issue-28/legacy-record-transfer.md)
