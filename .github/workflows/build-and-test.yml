@@ -74,14 +74,13 @@ jobs:
           echo "DESTINATION=platform=iOS Simulator,id=$SIMULATOR_UDID" >> "$GITHUB_ENV"
           echo "Selected simulator: $SIMULATOR_UDID"
 
-      - name: Verify historical SwiftData disk stores
+      - name: Test persistence and historical SwiftData disk stores
         working-directory: Dependencies/PersistencesService
         run: |
           xcodebuild test \
             -scheme PersistencesService \
             -destination "$DESTINATION" \
             -resultBundlePath "$GITHUB_WORKSPACE/LegacyStoreTestResults.xcresult" \
-            -only-testing:PersistencesServiceTests/LegacyDiskStoreCompatibilityTests \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Resolve Swift Package Dependencies
