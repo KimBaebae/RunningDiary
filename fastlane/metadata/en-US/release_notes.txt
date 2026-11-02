@@ -1,3 +1,5 @@
 • Design Revamp: Refreshed the app's look and feel for a better viewing experience.
 • Data Expansion: More diverse workout data is now available.
 • Performance Improvement: Improved app performance for a smoother experience.
+• Transfer Existing Records: Transfer running records stored on your device to your signed-in account from Settings. The original records remain on your device.
+• Edit Records: Edit saved runs directly from their record cards.
